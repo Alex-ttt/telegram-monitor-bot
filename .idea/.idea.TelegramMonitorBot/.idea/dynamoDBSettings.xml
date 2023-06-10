@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DynamoDBConfiguration">
+    <option name="databaseConfigurations">
+      <map>
+        <entry key="039e8daf-bf83-4010-af32-a360e49f734d">
+          <value>
+            <U>
+              <option name="id" value="039e8daf-bf83-4010-af32-a360e49f734d" />
+              <option name="label" value="DynamoDB" />
+              <option name="version" value="2" />
+            </U>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="requestHistory">
+      <map>
+        <entry key="039e8daf-bf83-4010-af32-a360e49f734d" value="[{&quot;body&quot;:&quot;{\n  \&quot;TableName\&quot;: \&quot;Music\&quot;\n}&quot;,&quot;operation&quot;:&quot;SCAN&quot;,&quot;sqlStatement&quot;:null},{&quot;body&quot;:&quot;{\n}&quot;,&quot;operation&quot;:&quot;LIST_TABLES&quot;,&quot;sqlStatement&quot;:null},{&quot;body&quot;:&quot;{\n  \&quot;Limit\&quot;: 50,\n  \&quot;Statement\&quot;: \&quot;SELECT * FROM \\\&quot;Music\\\&quot; WHERE Artist IS NOT NULL\&quot;,\n  \&quot;ReturnConsumedCapacity\&quot;: \&quot;TOTAL\&quot;\n}&quot;,&quot;operation&quot;:&quot;EXECUTE_STATEMENT&quot;,&quot;sqlStatement&quot;:&quot;SELECT * FROM \&quot;Music\&quot; WHERE Artist IS NOT NULL&quot;},{&quot;body&quot;:&quot;{\n  \&quot;Limit\&quot;: 50,\n  \&quot;Statement\&quot;: \&quot;SELECT * FROM Music\&quot;,\n  \&quot;ReturnConsumedCapacity\&quot;: \&quot;TOTAL\&quot;\n}&quot;,&quot;operation&quot;:&quot;EXECUTE_STATEMENT&quot;,&quot;sqlStatement&quot;:&quot;SELECT * FROM Music&quot;},{&quot;body&quot;:&quot;{\&quot;Statement\&quot;:\&quot;INSERT INTO Music\\n  VALUE\\n{\\n    'Artist':'No One You Know',\\n    'SongTitle':'Call Me Today',\\n    'AlbumTitle':'Somewhat Famous', \\n    'Awards':'1'\\n}\&quot;}&quot;,&quot;operation&quot;:&quot;EXECUTE_STATEMENT&quot;,&quot;sqlStatement&quot;:&quot;INSERT INTO Music\n  VALUE\n{\n    'Artist':'No One You Know',\n    'SongTitle':'Call Me Today',\n    'AlbumTitle':'Somewhat Famous', \n    'Awards':'1'\n}&quot;},{&quot;body&quot;:&quot;{\n  \&quot;TableName\&quot;: \&quot;Music\&quot;,\n  \&quot;AttributeDefinitions\&quot;: [\n    {\n      \&quot;AttributeName\&quot;: \&quot;Artist\&quot;,\n      \&quot;AttributeType\&quot;: \&quot;S\&quot;\n    },\n    {\n      \&quot;AttributeName\&quot;: \&quot;SongTitle\&quot;,\n      \&quot;AttributeType\&quot;: \&quot;S\&quot;\n    }\n  ],\n  \&quot;KeySchema\&quot;: [\n    {\n      \&quot;AttributeName\&quot;: \&quot;Artist\&quot;,\n      \&quot;KeyType\&quot;: \&quot;HASH\&quot;\n    },\n    {\n      \&quot;AttributeName\&quot;: \&quot;SongTitle\&quot;,\n      \&quot;KeyType\&quot;: \&quot;RANGE\&quot;\n    }\n  ],\n  \&quot;ProvisionedThroughput\&quot;: {\n    \&quot;ReadCapacityUnits\&quot;: 5,\n    \&quot;WriteCapacityUnits\&quot;: 5 \n  },\n  \&quot;TableClass\&quot;: \&quot;STANDARD\&quot;\n}&quot;,&quot;operation&quot;:&quot;CREATE_TABLE&quot;,&quot;sqlStatement&quot;:null},{&quot;body&quot;:&quot;{\n  \&quot;TableName\&quot;: \&quot;Music\&quot;,\n  \&quot;AttributeDefinitions\&quot;: [\n    {\n      \&quot;AttributeName\&quot;: \&quot;Artist\&quot;,\n      \&quot;AttributeType\&quot;: \&quot;S\&quot;\n    },\n    {\n      \&quot;AttributeName\&quot;: \&quot;SongTitle\&quot;,\n      \&quot;AttributeType\&quot;: \&quot;S\&quot;\n    }\n  ],\n  \&quot;BillingMode\&quot;: \&quot;\&quot;,\n  \&quot;KeySchema\&quot;: [\n    {\n      \&quot;AttributeName\&quot;: \&quot;Artist\&quot;,\n      \&quot;KeyType\&quot;: \&quot;HASH\&quot;\n    },\n    {\n      \&quot;AttributeName\&quot;: \&quot;SongTitle\&quot;,\n      \&quot;KeyType\&quot;: \&quot;RANGE\&quot;\n    }\n  ],\n  \&quot;ProvisionedThroughput\&quot;: {\n    \&quot;ReadCapacityUnits\&quot;: 5,\n    \&quot;WriteCapacityUnits\&quot;: 5 \n  },\n  \&quot;TableClass\&quot;: \&quot;STANDARD\&quot;\n}&quot;,&quot;operation&quot;:&quot;CREATE_TABLE&quot;,&quot;sqlStatement&quot;:null},{&quot;body&quot;:&quot;{\n  \&quot;TableName\&quot;: \&quot;test\&quot;\n  \n}&quot;,&quot;operation&quot;:&quot;CREATE_TABLE&quot;,&quot;sqlStatement&quot;:null},{&quot;body&quot;:&quot;{\n  \&quot;TableName\&quot;: \&quot;test\&quot;\n  ]\n}&quot;,&quot;operation&quot;:&quot;CREATE_TABLE&quot;,&quot;sqlStatement&quot;:null},{&quot;body&quot;:&quot;{\n  \&quot;TableName\&quot;: \&quot;test\&quot;,\n  \&quot;KeySchema\&quot;: [\n    {\n      \&quot;AttributeName\&quot;: \&quot;dbo\&quot;\n    }\n  ]\n}&quot;,&quot;operation&quot;:&quot;CREATE_TABLE&quot;,&quot;sqlStatement&quot;:null},{&quot;body&quot;:&quot;{\n  \&quot;Limit\&quot;: 50,\n  \&quot;Statement\&quot;: \&quot;select * from dbo.test;\&quot;,\n  \&quot;ReturnConsumedCapacity\&quot;: \&quot;TOTAL\&quot;\n}&quot;,&quot;operation&quot;:&quot;EXECUTE_STATEMENT&quot;,&quot;sqlStatement&quot;:&quot;select * from dbo.test;&quot;}]" />
+      </map>
+    </option>
+    <option name="version" value="1" />
+  </component>
+</project>
