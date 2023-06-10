@@ -1,0 +1,30 @@
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Telegram.Bot;
+using TelegramMonitorBot.Configuration.Options;
+using TelegramMonitorBot.TelegramBotClient.Services;
+
+namespace TelegramMonitorBot.TelegramBotClient;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddTelegramBotClient(this IServiceCollection services)
+    {
+        var botApiOptions = services.BuildServiceProvider().GetRequiredService<IOptions<TelegramBotApiOptions>>();
+        
+        var token = !string.IsNullOrEmpty(botApiOptions.Value.Token) 
+            ? botApiOptions.Value.Token
+            : throw new ArgumentOutOfRangeException(nameof(TelegramBotApiOptions.Token), "Token can't be empty");
+
+        services
+            .AddHttpClient(Constants.Http.TelegramBotClientName)
+            .AddTypedClient<ITelegramBotClient>((httpClient, _) => new Telegram.Bot.TelegramBotClient( new TelegramBotClientOptions(token), httpClient));
+        
+        services
+            .AddScoped<UpdateHandler>()
+            .AddScoped<ReceiverService>()
+            .AddHostedService<PollingService>();
+        
+        return services;
+    } 
+}
