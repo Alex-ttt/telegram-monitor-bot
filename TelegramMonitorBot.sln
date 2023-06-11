@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramMonitorBot.Telegram
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramMonitorBot.Storage", "TelegramMonitorBot.Storage\TelegramMonitorBot.Storage.csproj", "{6503FC8E-7CDD-4ED6-9ED0-8AA61B65339D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramMonitorBot.DynamoDBMigrator", "TelegramMonitorBot.DynamoDBMigrator\TelegramMonitorBot.DynamoDBMigrator.csproj", "{9F8AE3E7-4EFE-496D-8B44-31EDAD4BF727}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,5 +50,9 @@ Global
 		{6503FC8E-7CDD-4ED6-9ED0-8AA61B65339D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6503FC8E-7CDD-4ED6-9ED0-8AA61B65339D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6503FC8E-7CDD-4ED6-9ED0-8AA61B65339D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F8AE3E7-4EFE-496D-8B44-31EDAD4BF727}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F8AE3E7-4EFE-496D-8B44-31EDAD4BF727}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F8AE3E7-4EFE-496D-8B44-31EDAD4BF727}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F8AE3E7-4EFE-496D-8B44-31EDAD4BF727}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

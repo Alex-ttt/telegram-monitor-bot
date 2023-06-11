@@ -5,11 +5,11 @@ using TelegramMonitorBot.Configuration.Options;
 
 namespace TelegramMonitorBot.Storage;
 
-internal class DynamoClientInitializer
+public class DynamoClientInitializer
 {
     private readonly IOptions<AwsOptions> _awsOptions;
 
-    internal DynamoClientInitializer(IOptions<AwsOptions> awsOptions)
+    public DynamoClientInitializer(IOptions<AwsOptions> awsOptions)
     {
         _awsOptions = awsOptions;
     }
@@ -20,6 +20,11 @@ internal class DynamoClientInitializer
         {
             RegionEndpoint = RegionEndpoint.GetBySystemName(_awsOptions.Value.Region)
         };
+
+        if (_awsOptions.Value.DynamoDb?.ServiceURL is { } serviceUrl)
+        {
+            clientConfig.ServiceURL = serviceUrl;
+        }
         
 
         return new AmazonDynamoDBClient(clientConfig); 

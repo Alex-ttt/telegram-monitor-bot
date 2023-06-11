@@ -1,4 +1,5 @@
 ﻿using TelegramMonitorBot.AmazonSecretsManagerClient;
+using TelegramMonitorBot.DynamoDBMigrator;
 using TelegramMonitorBot.Storage;
 using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient;
@@ -23,6 +24,9 @@ builder.Services
     .AddSwaggerGen();
 
 var app = builder.Build();
+
+var migrator = app.Services.GetRequiredService<StorageMigrator>();
+await migrator.MigrateStorage();
 
 if (app.Environment.IsDevelopment())
 {
