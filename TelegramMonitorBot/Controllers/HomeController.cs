@@ -12,6 +12,4 @@ public class HomeController : ControllerBase
     {
         return $"Hello, {name}!";
     }
-    
-    
 }

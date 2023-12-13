@@ -93,7 +93,7 @@ public class StorageMigrator
             .Where(t =>
                 t.IsAbstract is false
                 && t.IsAssignableTo(typeof(MigrationBase)))
-            .Select(t => new {Type = t, Metadata = t.GetCustomAttribute<MigrationAttribute>()!})
+            .Select(t => new {Type = t, Metadata = t.GetCustomAttribute<MigrationAttribute>()})
             .Where(t => t.Metadata is not null)
             .ToArray();
 
@@ -129,7 +129,7 @@ public class StorageMigrator
     {
         const string keyConditionExpression = $"{Constants.MigrationHistory.IdColumnName} = :id";
         var expressionAttributeValues = new Dictionary<string, AttributeValue>
-        {
+        { 
             { ":id", new AttributeValue { N = migrationInfo.Metadata.MigrationId.ToString() } }
         };
         

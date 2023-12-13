@@ -47,7 +47,6 @@ internal class TdClientBuilder
             return;
         }
 
-
         _ = await client.SetAuthenticationPhoneNumberAsync(apiOptions.PhoneNumber);
 
         var code = await AwaitVerificationCode(cancellationToken);

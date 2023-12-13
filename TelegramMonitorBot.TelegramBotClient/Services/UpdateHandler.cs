@@ -22,8 +22,8 @@ public class UpdateHandler : IUpdateHandler
 
     public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
     {
-        var result = await _.SendTextMessageAsync(new ChatId("@baraholka_tbi"), "Hello", cancellationToken: cancellationToken);
-        Console.WriteLine("Chat id is " + result.Chat.Id);
+        // var result = await _.SendTextMessageAsync(new ChatId("@baraholka_tbi"), "Hello", cancellationToken: cancellationToken);
+        // Console.WriteLine("Chat id is " + result.Chat.Id);
         
         var handler = update switch
         {
