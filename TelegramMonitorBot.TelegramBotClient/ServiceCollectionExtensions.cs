@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using TelegramMonitorBot.Configuration.Options;
+using TelegramMonitorBot.TelegramBotClient.ChatContext;
 using TelegramMonitorBot.TelegramBotClient.Services;
 
 namespace TelegramMonitorBot.TelegramBotClient;
@@ -23,6 +24,7 @@ public static class ServiceCollectionExtensions
         services
             .AddScoped<UpdateHandler>()
             .AddScoped<ReceiverService>()
+            .AddSingleton<ChatContextManager>()
             .AddHostedService<PollingService>();
         
         return services;

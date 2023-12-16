@@ -1,4 +1,4 @@
-﻿namespace TelegramMonitorBot.DynamoDBMigrator;
+﻿namespace TelegramMonitorBot.DynamoDBMigrator.Models;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public class MigrationAttribute : Attribute
@@ -11,5 +11,4 @@ public class MigrationAttribute : Attribute
         MigrationId = migrationId;
         MigrationName = migrationName;
     }
-    
 }

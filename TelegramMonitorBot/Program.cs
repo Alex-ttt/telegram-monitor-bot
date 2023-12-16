@@ -28,6 +28,10 @@ var app = builder.Build();
 var migrator = app.Services.GetRequiredService<StorageMigrator>();
 await migrator.MigrateStorage();
 
+//
+// var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramApiClient>();
+// await client.DoStuff();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

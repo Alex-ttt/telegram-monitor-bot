@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using TelegramMonitorBot.DynamoDBMigrator.Models;
 
 namespace TelegramMonitorBot.DynamoDBMigrator;
 
@@ -24,12 +25,12 @@ public class StorageMigrator
                 continue;
             }
             
-            await ApplyMigration(migrationInfo, cancellationToken);
-            await MarkMigrationApplied(migrationInfo, cancellationToken);
+            await ApplyMigration(migrationInfo);
+            await MarkMigrationApplied(migrationInfo);
         }
     }
 
-    private async Task MarkMigrationApplied(MigrationInfo migrationInfo, CancellationToken cancellationToken)
+    private async Task MarkMigrationApplied(MigrationInfo migrationInfo)
     {
         var tableName = Constants.MigrationHistory.TableName;
         var request = new PutItemRequest
@@ -44,7 +45,7 @@ public class StorageMigrator
             }
         };
 
-        await _client.PutItemAsync(request, cancellationToken);
+        await _client.PutItemAsync(request);
     }
 
 
@@ -99,7 +100,7 @@ public class StorageMigrator
 
         var nonUniqueMigrations =
             migrationTypes
-                .GroupBy(t => t.Metadata.MigrationId)
+                .GroupBy(t => t.Metadata!.MigrationId)
                 .Where(t => t.Count() > 1)
                 .Select(t => 
                     $"Migration Id: {t.Key}. Migrations' names: {string.Join(", ", t.Select(t => t.Metadata.MigrationName))}")
@@ -116,13 +117,9 @@ public class StorageMigrator
         }
     }
 
-    private async Task ApplyMigration(MigrationInfo migrationInfo, CancellationToken cancellationToken)
+    private async Task ApplyMigration(MigrationInfo migrationInfo)
     {
-        migrationInfo.Migration.Up();
-        foreach (var operation in migrationInfo.Migration.Operations)
-        {
-            await _client.ExecuteRequest(operation, cancellationToken);
-        }
+        await migrationInfo.Migration.Apply(_client);
     }
 
     private async Task<bool> CheckMigrationApplied(MigrationInfo migrationInfo, CancellationToken cancellationToken)
@@ -145,4 +142,33 @@ public class StorageMigrator
 
         return response.Items.Count > 0;
     }
+    
+    
+/*
+    // Create Channels table
+aws dynamodb create-table \
+--table-name Channels \
+--attribute-definitions AttributeName=ChannelId,AttributeType=N \
+--key-schema AttributeName=ChannelId,KeyType=HASH \
+--provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+
+// Create GSI for Channels table 
+aws dynamodb create-global-secondary-index \
+--table-name Channels \
+--global-secondary-index-name ChannelByName \  
+--key-schema AttributeName=Name,KeyType=HASH \
+--projection AttributeNames=ChannelId,Name,LastReadMessageId,Users \  
+--provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+
+// Create Users table
+aws dynamodb create-table \
+--table-name Users \
+--attribute-definitions AttributeName=UserId,AttributeType=N AttributeName=ChannelId,AttributeType=N \
+--key-schema AttributeName=UserId,KeyType=HASH AttributeName=ChannelId,KeyType=RANGE \  
+--provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+*/
+
+    // CreateTable(client, "Users", "UserId", "N", "ChannelId", "N");
+
+    
 }

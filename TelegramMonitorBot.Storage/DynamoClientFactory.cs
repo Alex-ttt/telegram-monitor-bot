@@ -5,11 +5,11 @@ using TelegramMonitorBot.Configuration.Options;
 
 namespace TelegramMonitorBot.Storage;
 
-public class DynamoClientInitializer
+public class DynamoClientFactory
 {
     private readonly IOptions<AwsOptions> _awsOptions;
 
-    public DynamoClientInitializer(IOptions<AwsOptions> awsOptions)
+    public DynamoClientFactory(IOptions<AwsOptions> awsOptions)
     {
         _awsOptions = awsOptions;
     }

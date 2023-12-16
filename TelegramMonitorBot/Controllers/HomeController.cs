@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using TelegramMonitorBot.TelegramApiClient;
 
 namespace TelegramMonitorBot.Controllers;
 
@@ -7,9 +8,13 @@ namespace TelegramMonitorBot.Controllers;
 [Produces("application/json")]
 public class HomeController : ControllerBase
 {
+    private readonly ITelegramApiClient _client;
+    
     [HttpGet("{name}")]
-    public string SayHello(string name)
+    public async Task<string> SayHello(string name)
     {
+
+        await _client.DoStuff();
         return $"Hello, {name}!";
     }
 }

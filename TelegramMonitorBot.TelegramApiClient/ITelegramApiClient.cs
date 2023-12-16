@@ -2,5 +2,5 @@
 
 public interface ITelegramApiClient
 {
-    void DoStuff();
+    Task DoStuff();
 }

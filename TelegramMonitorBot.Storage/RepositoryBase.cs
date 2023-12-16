@@ -7,9 +7,9 @@ internal class RepositoryBase
 {
     private readonly AmazonDynamoDBClient _dynamoDbClient;
 
-    public RepositoryBase(DynamoClientInitializer clientInitializer)
+    public RepositoryBase(DynamoClientFactory clientFactory)
     {
-        _dynamoDbClient = clientInitializer.GetClient();
+        _dynamoDbClient = clientFactory.GetClient();
     }
 
     public async Task DoSomething(CancellationToken cancellationToken)
