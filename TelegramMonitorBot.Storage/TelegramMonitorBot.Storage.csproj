@@ -20,6 +20,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\TelegramMonitorBot.Configuration\TelegramMonitorBot.Configuration.csproj" />
+      <ProjectReference Include="..\TelegramMonitorBot.Domain\TelegramMonitorBot.Domain.csproj" />
       <ProjectReference Include="..\TelegramMonitorBot.DynamoDBMigrator\TelegramMonitorBot.DynamoDBMigrator.csproj" />
     </ItemGroup>
 

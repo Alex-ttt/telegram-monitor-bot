@@ -26,10 +26,9 @@ internal class RepositoryBase
             {
                 { ":value", new AttributeValue { S = "No One You Know" } }
             },
-            ProjectionExpression = "Artist"
         };
         
-        var obj = await _dynamoDbClient.QueryAsync(queryRequest, cancellationToken);
+        var result = await _dynamoDbClient.QueryAsync(queryRequest, cancellationToken);
     }
     
 }

@@ -1,6 +1,8 @@
-﻿using Amazon;
+﻿using System.Text.Json;
+using Amazon;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using TelegramMonitorBot.AmazonSecretsManagerClient.Client;
 using TelegramMonitorBot.Configuration.Options;
 
@@ -12,53 +14,40 @@ public static class ServiceCollectionExtensions
     {
         var awsOptionsSection = configuration.GetSection("Aws");
         services.Configure<AwsOptions>(awsOptionsSection);
-        
-        var region = awsOptionsSection.GetValue<string>("Region");
-        var regionEndpoint = RegionEndpoint.GetBySystemName(region);
 
+        var secretManager = AmazonSecretsManagerClientFactory.Create(configuration);
         services
-            .AddSingleton<Amazon.SecretsManager.AmazonSecretsManagerClient>(_ => new Amazon.SecretsManager.AmazonSecretsManagerClient(regionEndpoint))
-            .AddSingleton<IAwsSecretManagerClient, AwsSecretManagerClient>();
-            
-        using var scope = services.BuildServiceProvider().CreateScope();
-        
+            .AddSingleton<IAwsSecretManagerClient, AwsSecretManagerClient>()
+            .AddSingleton(secretManager);
+
+        return services;
+    }
+
+    public static IServiceCollection ConfigureAmazonSecrets(this IServiceCollection services, IConfiguration configuration)
+    {
         services
-            .ConfigureTelegramApiOptions(scope)
-            .ConfigureTelegramBotApiOptions(scope);
-
-        return services;
-    }
-
-    private static IServiceCollection ConfigureTelegramApiOptions(this IServiceCollection services, IServiceScope scope)
-    {
-        var client = GetAwsClientManager(services, scope);
-        var telegramOptions = client.GetTelegramApiOptions(CancellationToken.None).Result;
+            .ConfigureTelegramApiOptions(configuration)
+            .ConfigureTelegramBotApiOptions(configuration);
         
-        services.Configure<TelegramApiOptions>(options => options.CopyFromAnother(telegramOptions));
+        return services;
+    }
+
+    private static IServiceCollection ConfigureTelegramApiOptions(this IServiceCollection services, IConfiguration configuration)
+    {
+        var telegramApiOptionsSection = configuration.GetSection("TelegramApiCredentials");
+        var value = JsonSerializer.Deserialize<TelegramApiOptions>(telegramApiOptionsSection.Value!);
+        services.Configure<TelegramApiOptions>(options => options.CopyFromAnother(value));
 
         return services;
     }
     
-    
-    private static IServiceCollection ConfigureTelegramBotApiOptions(this IServiceCollection services, IServiceScope scope)
+    private static IServiceCollection ConfigureTelegramBotApiOptions(this IServiceCollection services, IConfiguration configuration)
     {
-        var client = GetAwsClientManager(services, scope);
-        var telegramBotApiOptions = client.GetTelegramBotApiOptions(CancellationToken.None).Result;
+        var telegramBotOptionsSection = configuration.GetSection("TelegramBotApiCredentials");
+        var value = JsonSerializer.Deserialize<TelegramBotApiOptions>(telegramBotOptionsSection.Value!);
         
-        services.Configure<TelegramBotApiOptions>(options => options.CopyFromAnother(telegramBotApiOptions));
+        services.Configure<TelegramBotApiOptions>(options => options.Token = value.Token);
 
         return services;
     }
-
-    private static AwsSecretManagerClient GetAwsClientManager(IServiceCollection services, IServiceScope scope)
-    {
-        var serviceProvider = scope.ServiceProvider;
-        if (serviceProvider.GetRequiredService<IAwsSecretManagerClient>() is not AwsSecretManagerClient client)
-        {
-            throw new InvalidOperationException($"Unexpected implementation type of {nameof(IAwsSecretManagerClient)}");
-        }
-
-        return client;
-    }
-    
 }

@@ -6,6 +6,8 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramMonitorBot.Storage.Repositories.Abstractions;
+using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 
 // ReSharper disable All
@@ -17,12 +19,17 @@ public class UpdateHandler : IUpdateHandler
     private readonly ITelegramBotClient _botClient;
     private readonly ILogger<UpdateHandler> _logger;
     private readonly ChatContextManager _chatContextManager;
+    private readonly ITelegramRepository _telegramRepository;
+    private readonly ITelegramApiClient _telegramApiClient;
     
     public UpdateHandler(
         ITelegramBotClient botClient, 
         ILogger<UpdateHandler> logger, 
-        ChatContextManager chatContextManager) =>
-        (_botClient, _chatContextManager, _logger) = (botClient, chatContextManager, logger);
+        ChatContextManager chatContextManager, ITelegramRepository telegramRepository, ITelegramApiClient telegramApiClient)
+    {
+        (_botClient, _chatContextManager, _telegramRepository, _telegramApiClient, _logger) = 
+            (botClient, chatContextManager, telegramRepository, telegramApiClient, logger);
+    }
 
     public async Task HandleUpdateAsync(ITelegramBotClient telegramBotClient, Update update, CancellationToken cancellationToken)
     {
@@ -90,13 +97,14 @@ public class UpdateHandler : IUpdateHandler
         var action = messageText.Split(' ')[0] switch
         {
             "/add_channel"     => AddChannel(_botClient, message, cancellationToken),
+            "/my_channels"     => MyChannels(_botClient, message, cancellationToken),
             "/keyboard"        => SendReplyKeyboard(_botClient, message, cancellationToken),
             "/remove"          => RemoveKeyboard(_botClient, message, cancellationToken),
             "/photo"           => SendFile(_botClient, message, cancellationToken),
             "/request"         => RequestContactAndLocation(_botClient, message, cancellationToken),
             "/inline_mode"     => StartInlineQuery(_botClient, message, cancellationToken),
             "/throw"           => FailingHandler(_botClient, message, cancellationToken),
-            _                  => TextMessage(_botClient, message, cancellationToken)
+            _                  => AddUserChannel(message, cancellationToken)
         };
 
 
@@ -112,21 +120,69 @@ public class UpdateHandler : IUpdateHandler
         //     
         //     
         // }
-        
-        async Task<Message> TextMessage(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+
+        async Task<Message> AddUserChannel(Message message, CancellationToken cancellationToken)
         {
             var currentState = _chatContextManager.GetCurrentState(message.Chat.Id);
-            if(currentState == ChatState.WaitingForChannelToSubscribe)
+            if (currentState == ChatState.WaitingForChannelToSubscribe || Math.E > 0)
             {
+                var channel = await _telegramApiClient.FindChannelByName(message.Text!); // TODO think about null text
+                if (channel is null)
+                {
+                    return await _botClient.SendTextMessageAsync(
+                        message.Chat.Id, 
+                        $"Не удалось найти канал {message.Text}", 
+                        cancellationToken: cancellationToken);
+                }
+
+                var user = new Domain.Models.User(message.Chat.Id, message.Chat.Username ?? "_unknown_");
+                
+                await _telegramRepository.PutUserChannel(
+                    new (message.Chat.Id, message.Chat.Username ?? "_unknown_"),
+                    new (channel.Id, channel.Title),
+                    cancellationToken);
+                
                 _chatContextManager.OnAddedChannel(message.Chat.Id);
                 
-                return await botClient.SendTextMessageAsync(
+                return await _botClient.SendTextMessageAsync(
                     message.Chat.Id, 
                     $"Канал {message.Text} добавлен", 
                     cancellationToken: cancellationToken);
             }
             
-            return await Usage(botClient, message, cancellationToken);
+            return await Usage(_botClient, message, cancellationToken);
+        }
+        
+        async Task<Message> TextMessage(Message message, CancellationToken cancellationToken)
+        {
+            var currentState = _chatContextManager.GetCurrentState(message.Chat.Id);
+            if (currentState == ChatState.WaitingForChannelToSubscribe)
+            {
+                var channel = await _telegramApiClient.FindChannelByName(message.Text!); // TODO think about null text
+                if (channel is null)
+                {
+                    return await _botClient.SendTextMessageAsync(
+                        message.Chat.Id, 
+                        $"Не удалось найти канал {message.Text}", 
+                        cancellationToken: cancellationToken);
+                }
+                
+                // _telegramRepository.PutUserChannel()
+                
+
+            // await _telegramRepository.AddUserToChannel(
+                //     new User(message.Chat.Id, message.Chat.Username),
+                //     new Channel(){ ChannelId = })
+                
+                _chatContextManager.OnAddedChannel(message.Chat.Id);
+                
+                return await _botClient.SendTextMessageAsync(
+                    message.Chat.Id, 
+                    $"Канал {message.Text} добавлен", 
+                    cancellationToken: cancellationToken);
+            }
+            
+            return await Usage(_botClient, message, cancellationToken);
         }
         
         async Task<Message> AddChannel(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
@@ -139,6 +195,24 @@ public class UpdateHandler : IUpdateHandler
             _chatContextManager.OnAddingChannel(message.Chat.Id);
 
             return sentMessage;
+        }
+        
+        async Task<Message> MyChannels(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            var channels = await _telegramRepository.GetChannels(message.Chat.Id, cancellationToken);
+
+            if (channels.Any() is false)
+            {
+                return await botClient.SendTextMessageAsync(
+                    message.Chat.Id,
+                    "У вас ещё нет каналов",
+                    cancellationToken: cancellationToken);;
+            }
+            
+            return await botClient.SendTextMessageAsync(
+                message.Chat.Id,
+                $"Ваши каналы: {string.Join(", ", channels.Select(t => "@" + t.Name))}",
+                cancellationToken: cancellationToken);;
         }
         
         // Send inline keyboard
@@ -244,6 +318,7 @@ public class UpdateHandler : IUpdateHandler
                                  "/remove      - remove custom keyboard\n" +
                                  "/photo       - send a photo\n" +
                                  "/request     - request location or contact\n" +
+                                 "/get_subscribtions - get subscribtions\n" +
                                  "/inline_mode - send keyboard with Inline Query";
 
             return await botClient.SendTextMessageAsync(

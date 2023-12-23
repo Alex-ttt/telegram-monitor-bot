@@ -39,9 +39,9 @@ public class StorageMigrator
             Item = new Dictionary<string, AttributeValue>
             {
                 [Constants.MigrationHistory.IdColumnName] = new() { N = migrationInfo.Metadata.MigrationId.ToString() },
-                [Constants.MigrationHistory.CreatedColumnName] = new() { S = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() },
                 [Constants.MigrationHistory.NameColumnName] = new() { S = migrationInfo.Metadata.MigrationName },
                 [Constants.MigrationHistory.SourceColumnName] = new() { S = migrationInfo.Migration.GetType().FullName },
+                [Constants.MigrationHistory.CreatedColumnName] = new() { S = DateTimeOffset.UtcNow.ToString() },
             }
         };
 
@@ -108,7 +108,7 @@ public class StorageMigrator
 
         if (nonUniqueMigrations.Length > 0)
         {
-            throw new InvalidOperationException($"None unique migrations ids found:\n {string.Join("\n", nonUniqueMigrations)}");
+            throw new InvalidOperationException($"None unique migrations ids found:\n\t {string.Join("\n\t", nonUniqueMigrations)}");
         }
 
         foreach (var typeInfo in migrationTypes.OrderBy(t => t.Metadata.MigrationId))
@@ -142,33 +142,4 @@ public class StorageMigrator
 
         return response.Items.Count > 0;
     }
-    
-    
-/*
-    // Create Channels table
-aws dynamodb create-table \
---table-name Channels \
---attribute-definitions AttributeName=ChannelId,AttributeType=N \
---key-schema AttributeName=ChannelId,KeyType=HASH \
---provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
-
-// Create GSI for Channels table 
-aws dynamodb create-global-secondary-index \
---table-name Channels \
---global-secondary-index-name ChannelByName \  
---key-schema AttributeName=Name,KeyType=HASH \
---projection AttributeNames=ChannelId,Name,LastReadMessageId,Users \  
---provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
-
-// Create Users table
-aws dynamodb create-table \
---table-name Users \
---attribute-definitions AttributeName=UserId,AttributeType=N AttributeName=ChannelId,AttributeType=N \
---key-schema AttributeName=UserId,KeyType=HASH AttributeName=ChannelId,KeyType=RANGE \  
---provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
-*/
-
-    // CreateTable(client, "Users", "UserId", "N", "ChannelId", "N");
-
-    
 }

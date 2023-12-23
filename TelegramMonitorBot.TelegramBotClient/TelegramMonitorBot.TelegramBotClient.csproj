@@ -16,6 +16,8 @@
 
     <ItemGroup>
       <ProjectReference Include="..\TelegramMonitorBot.Configuration\TelegramMonitorBot.Configuration.csproj" />
+      <ProjectReference Include="..\TelegramMonitorBot.Storage\TelegramMonitorBot.Storage.csproj" />
+      <ProjectReference Include="..\TelegramMonitorBot.TelegramApiClient\TelegramMonitorBot.TelegramApiClient.csproj" />
     </ItemGroup>
 
 </Project>

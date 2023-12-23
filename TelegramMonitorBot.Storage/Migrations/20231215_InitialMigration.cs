@@ -1,9 +1,10 @@
 ﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime.Documents;
+using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.DynamoDBMigrator;
 using TelegramMonitorBot.DynamoDBMigrator.Models;
-using TelegramMonitorBot.Storage.Models;
+using TelegramMonitorBot.Storage.Mapping;
 
 namespace TelegramMonitorBot.Storage.Migrations;
 
@@ -17,24 +18,21 @@ public class InitialMigration : MigrationBase
         await CreateUserChannelsTable(amazonDynamoDbClient);
         
         await Task.WhenAll(
-            WaitForTableToBeActive(amazonDynamoDbClient, "Users"),
-            WaitForTableToBeActive(amazonDynamoDbClient, "Channels"),
-            WaitForTableToBeActive(amazonDynamoDbClient, "UserChannels"));
-
-        var region = amazonDynamoDbClient.Config.AuthenticationRegion;
+            WaitForTableToBeActive(amazonDynamoDbClient, DynamoDbConfig.Users.TableName),
+            WaitForTableToBeActive(amazonDynamoDbClient, DynamoDbConfig.Channels.TableName),
+            WaitForTableToBeActive(amazonDynamoDbClient, DynamoDbConfig.UserChannels.TableName));
         
         await PutInitialData(amazonDynamoDbClient);
     }
 
     private async Task CreateUsersTable(IAmazonDynamoDB client)
     {
-        var tableName = "Users";
         var primaryKey = "UserId";
         var primaryKeyType = "N";
 
         var request = new CreateTableRequest
         {
-            TableName = tableName,
+            TableName = DynamoDbConfig.Users.TableName,
             AttributeDefinitions = { new AttributeDefinition {AttributeName = primaryKey, AttributeType = primaryKeyType}},
             KeySchema = { new KeySchemaElement {AttributeName = primaryKey, KeyType = "HASH"}},
             ProvisionedThroughput = new ProvisionedThroughput
@@ -49,12 +47,11 @@ public class InitialMigration : MigrationBase
 
     private async Task CreateChannelsTable(IAmazonDynamoDB client)
     {
-        var tableName = "Channels";
         var primaryKey = "ChannelId";
         
         var request = new CreateTableRequest
         {
-            TableName = tableName,
+            TableName = DynamoDbConfig.Channels.TableName,
             AttributeDefinitions =
             {
                 new AttributeDefinition {AttributeName = primaryKey, AttributeType = "N"}
@@ -73,12 +70,11 @@ public class InitialMigration : MigrationBase
 
     private async Task CreateUserChannelsTable(IAmazonDynamoDB client)
     {
-        var tableName = "UserChannels";
         var primaryKey1 = "UserId";
         var primaryKey2 = "ChannelId";
         var request = new CreateTableRequest
         {
-            TableName = tableName,
+            TableName = DynamoDbConfig.UserChannels.TableName,
 
             AttributeDefinitions = 
             {
@@ -88,7 +84,7 @@ public class InitialMigration : MigrationBase
 
             KeySchema = 
             {
-                new KeySchemaElement{ AttributeName = primaryKey1, KeyType = "HASH" },  
+                new KeySchemaElement{ AttributeName = primaryKey1, KeyType = "HASH" }, 
                 new KeySchemaElement{ AttributeName = primaryKey2, KeyType = "RANGE" }
             },
             ProvisionedThroughput = new ProvisionedThroughput
@@ -123,64 +119,36 @@ public class InitialMigration : MigrationBase
     {
         var channels = new List<Channel>
         {
-            new Channel() {ChannelId = 1, Name = "Zero Channel", },
-            new Channel() {ChannelId = 2, Name = "Second Channel",},
+            new Channel(1, "Zero Channel"),
+            new Channel(2, "Second Channel"),
         };
         
         var users = new List<User>()
         {
-            new User(){ UserId = 1, Name = "Alex" },
-            new User(){ UserId = 2, Name = "Noname"},
+            new User(1, "Alex"),
+            new User(2, "Petr"),
         };
         
-        var userChannels = new List<UserChannels>()
+        var userChannels = new List<UserChannel>()
         {
-            new UserChannels(1, 2, new List<string>{"hello", "world"}),
-            new UserChannels(2, 1, new List<string>(){"who", "am", "I"}),
+            new UserChannel(1, 2, new List<string>{"hello", "world"}) { Created = DateTimeOffset.Now },
+            new UserChannel(2, 1, new List<string>(){"who", "am", "I"}) { Created = DateTimeOffset.Now },
         };
         
         var request = new BatchWriteItemRequest
         {
             RequestItems = new Dictionary<string, List<WriteRequest>>
             {
-                ["Users"] = users.Select(GetUserPutRequest).ToList(),
-                ["Channels"] = channels.Select(GetChannelPutRequest).ToList(),
-                ["UserChannels"] = userChannels.Select(GetUserChannelsPutRequest).ToList(),
+                [DynamoDbConfig.Users.TableName] = users.Select(GetUserWriteRequest).ToList(),
+                [DynamoDbConfig.Channels.TableName] = channels.Select(GetChannelWriteRequest).ToList(),
+                [DynamoDbConfig.UserChannels.TableName] = userChannels.Select(GetUserChannelsWriteRequest).ToList(),
             }
         };
         
         await client.BatchWriteItemAsync(request);
         
-        // TODO Move to special place
-        WriteRequest GetUserPutRequest(User user)
-        {
-            return new WriteRequest(
-                new PutRequest(new() 
-                {
-                    [nameof(User.UserId)] = new AttributeValue { N = user.UserId.ToString()},
-                    [nameof(User.Name)] = new AttributeValue(user.Name),
-                }));
-        }
-        
-        WriteRequest GetChannelPutRequest(Channel channel)
-        {
-            return new WriteRequest(
-                new PutRequest(new() 
-                {
-                    [nameof(Channel.ChannelId)] = new () { N = channel.ChannelId.ToString()},
-                    [nameof(Channel.Name)] = new() { S = channel.Name},
-                }));
-        }
-        
-        WriteRequest GetUserChannelsPutRequest(UserChannels userChannels)
-        {
-            return new WriteRequest(
-                new PutRequest(new() 
-                {
-                    [nameof(UserChannels.ChannelId)] = new AttributeValue { N = userChannels.ChannelId.ToString()},
-                    [nameof(UserChannels.UserId)] = new AttributeValue { N = userChannels.UserId.ToString()},
-                    [nameof(UserChannels.Phrases)] = new AttributeValue { SS = userChannels.Phrases},
-                }));
-        }
+        WriteRequest GetUserWriteRequest(User user) => new(new PutRequest(user.ToDictionary()));
+        WriteRequest GetChannelWriteRequest(Channel channel) => new(new PutRequest(channel.ToDictionary()));
+        WriteRequest GetUserChannelsWriteRequest(UserChannel userChannels) => new(new PutRequest(userChannels.ToDictionary()));
     }
 }

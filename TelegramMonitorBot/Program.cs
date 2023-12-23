@@ -5,15 +5,25 @@ using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true, reloadOnChange: false)
-    .AddJsonFile($"appsettings.local.json", optional: true, reloadOnChange: false);
+    .AddJsonFile($"appsettings.local.json", optional: true, reloadOnChange: false)
+    .AddUserSecrets<Program>();
 
 var configuration = builder.Configuration;
 
+builder.Services.AddSecretManagerClient(configuration);
+    
+builder.Host.ConfigureAppConfiguration((buildContext, configurationBuilder) =>
+{
+    configurationBuilder.AddAmazonSecretsManager(buildContext.Configuration);
+});
+
 builder.Services
-    .AddSecretManagerClient(configuration)
+    .ConfigureAmazonSecrets(configuration)
     .AddTelegramApiClient()
     .AddTelegramBotClient()
     .AddStorage()
@@ -32,11 +42,13 @@ await migrator.MigrateStorage();
 // var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramApiClient>();
 // await client.DoStuff();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramRepository>();
+// await client.PutUserChannel(
+//     new User(3, "Oleg"),
+//     new Channel(2, "Cool Channel"));
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapGet("/api/hello", () => "Hello, World!");
 
