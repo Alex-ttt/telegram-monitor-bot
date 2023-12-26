@@ -1,6 +1,7 @@
 ﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using TelegramMonitorBot.Domain.Models;
+using TelegramMonitorBot.Storage.Caching;
 using TelegramMonitorBot.Storage.Mapping;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 
@@ -9,9 +10,13 @@ namespace TelegramMonitorBot.Storage.Repositories;
 internal class TelegramRepository : ITelegramRepository
 {
     private readonly AmazonDynamoDBClient _dynamoDbClient;
+    private readonly StorageMemoryCache _memoryCache;
 
-    public TelegramRepository(DynamoClientFactory clientFactory)
+    public TelegramRepository(
+        DynamoClientFactory clientFactory, 
+        StorageMemoryCache memoryCache)
     {
+        _memoryCache = memoryCache;
         _dynamoDbClient = clientFactory.GetClient();
     }
 
@@ -25,11 +30,21 @@ internal class TelegramRepository : ITelegramRepository
         var channelUser = new ChannelUser( channel, user);
         var channelUserAdded = await PutIfNotExists(channelUser.ToDictionary(), cancellationToken);
 
+        if (channelUserAdded)
+        {
+            _memoryCache.ResetUserChannels(user.UserId);
+        }
+
         return channelUserAdded;
     }
 
     public async Task<ICollection<Channel>> GetChannels(long userId, CancellationToken cancellationToken = default)
     {
+        if(_memoryCache.GetUserChannels(userId) is {} cached)
+        {
+            return cached;
+        }
+        
         var userChannelsQueryRequest = new QueryRequest
         {
             TableName = DynamoDbConfig.TableName,
@@ -46,6 +61,7 @@ internal class TelegramRepository : ITelegramRepository
         var userChannelsResponse = await _dynamoDbClient.QueryAsync(userChannelsQueryRequest, cancellationToken);
         if (userChannelsResponse.Items.Any() is false)
         {
+            _memoryCache.SetUserChannels(userId, Array.Empty<Channel>());
             return Array.Empty<Channel>();
         }
         
@@ -66,10 +82,13 @@ internal class TelegramRepository : ITelegramRepository
             }
         };
 
+        // TODO handle channelsResponse.UnprocessedKeys
         var channelsResponse = await _dynamoDbClient.BatchGetItemAsync(batchChannelsRequest, cancellationToken);
         var channels = channelsResponse.Responses[DynamoDbConfig.TableName]
             .Select(t => t.ToChannel())
             .ToList();
+        
+        _memoryCache.SetUserChannels(userId, channels);
         
         return channels;
     }

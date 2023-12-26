@@ -1,4 +1,5 @@
 ﻿using TelegramMonitorBot.DynamoDBMigrator;
+using TelegramMonitorBot.Storage.Caching;
 using TelegramMonitorBot.Storage.Repositories;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 
@@ -12,6 +13,7 @@ public static class ServiceCollectionExtensions
 
         var clientInitializer = services.BuildServiceProvider().GetRequiredService<DynamoClientFactory>();
         services.AddSingleton<StorageMigrator>(t => new StorageMigrator(clientInitializer.GetClient()));
+        services.AddSingleton<StorageMemoryCache>();
 
         services.AddScoped<ITelegramRepository, TelegramRepository>();
 
