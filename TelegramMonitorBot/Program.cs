@@ -1,5 +1,4 @@
 ﻿using TelegramMonitorBot.AmazonSecretsManagerClient;
-using TelegramMonitorBot.DynamoDBMigrator;
 using TelegramMonitorBot.Storage;
 using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient;
@@ -35,18 +34,14 @@ builder.Services
 
 var app = builder.Build();
 
-var migrator = app.Services.GetRequiredService<StorageMigrator>();
-await migrator.MigrateStorage();
-
 //
 // var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramApiClient>();
 // await client.DoStuff();
-
+//
 // var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramRepository>();
-// await client.PutUserChannel(
-//     new User(3, "Oleg"),
-//     new Channel(2, "Cool Channel"));
+// var channels = await client.GetChannels(3);
 
+await app.MigrateStorage();
 app.UseSwagger();
 app.UseSwaggerUI();
 

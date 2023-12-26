@@ -1,7 +1,6 @@
 ﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using TelegramMonitorBot.Domain.Models;
-using TelegramMonitorBot.Storage.Exceptions;
 using TelegramMonitorBot.Storage.Mapping;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 
@@ -15,117 +14,52 @@ internal class TelegramRepository : ITelegramRepository
     {
         _dynamoDbClient = clientFactory.GetClient();
     }
-    
-    public async Task PutUserChannel(User user, Channel channel, CancellationToken cancellationToken)
+
+    // TODO consider using result
+    public async Task<bool> PutUserChannel(User user, Channel channel, CancellationToken cancellationToken)
     {
-        var userId = user.UserId.ToString();
-        var channelId = channel.ChannelId.ToString();
-        var item = new Dictionary<string, AttributeValue>
-        {
-            {"UserId", new AttributeValue{N = userId}},
-            {"ChannelId", new AttributeValue{N = channelId}}, 
-            {"User", new AttributeValue 
-                {
-                    M = new Dictionary<string, AttributeValue> 
-                    {
-                        {"UserId", new AttributeValue {N = userId}},  
-                        {"Name", new AttributeValue {S = user.Name}}
-                    }
-                }
-            },
-            {"Channel", new AttributeValue
-                {
-                    M = new Dictionary<string, AttributeValue>
-                    {
-                        {"ChannelId", new AttributeValue{N = channelId}},
-                        {"Name", new AttributeValue{S = channel.Name}}  
-                    }
-                }
-            }
-        };
-
-// Put item in table
-        await _dynamoDbClient.PutItemAsync(DynamoDbConfig.UserChannels.TableName, item, cancellationToken);
-
+        await Task.WhenAll(
+            PutIfNotExists(channel.ToDictionary(), cancellationToken),
+            PutIfNotExists(user.ToDictionary(), cancellationToken));
         
-        
-        
-        var transactionRequest = new TransactWriteItemsRequest
-        {
-            TransactItems =
-            {
-                new TransactWriteItem
-                {
-                    Put = new Put
-                    {
-                        TableName = DynamoDbConfig.Users.TableName,
-                        Item = user.ToDictionary()
-                    }
-                },
-                new TransactWriteItem
-                {
-                    Put = new Put
-                    {
-                        TableName = DynamoDbConfig.Channels.TableName,
-                        Item = channel.ToDictionary(),
-                    }
-                },
-                new TransactWriteItem
-                {
-                    Put = new Put
-                    {
-                        TableName = DynamoDbConfig.UserChannels.TableName,
-                        ConditionExpression = "attribute_not_exists(UserId) AND attribute_not_exists(ChannelId)",
-                        Item = new UserChannel(user.UserId, channel.ChannelId).ToDictionary(),
-                    }
-                }
-            }
-        };
+        var channelUser = new ChannelUser( channel, user);
+        var channelUserAdded = await PutIfNotExists(channelUser.ToDictionary(), cancellationToken);
 
-        try
-        {
-            await _dynamoDbClient.TransactWriteItemsAsync(transactionRequest, cancellationToken);
-        }
-        catch (TransactionCanceledException ex) 
-            when (ex.CancellationReasons.Any(t => t.Code == "ConditionalCheckFailed"))
-        {
-            throw new UserChannelAlreadyExistsException(user.UserId, channel.ChannelId); 
-        }
+        return channelUserAdded;
     }
 
     public async Task<ICollection<Channel>> GetChannels(long userId, CancellationToken cancellationToken = default)
     {
         var userChannelsQueryRequest = new QueryRequest
         {
-            TableName = DynamoDbConfig.UserChannels.TableName,
-            KeyConditionExpression = "#UserId = :value",
-            ExpressionAttributeNames = new Dictionary<string, string>
-            {
-                { "#UserId", "UserId" }
-            },
+            TableName = DynamoDbConfig.TableName,
+            IndexName = DynamoDbConfig.GlobalSecondaryIndexName,
+            KeyConditionExpression = $"{DynamoDbConfig.SortKeyName} = :user_id_value and begins_with({DynamoDbConfig.PartitionKeyName}, :channel_prefix)",
             ExpressionAttributeValues = new Dictionary<string, AttributeValue>
             {
-                { ":value", new AttributeValue { N = userId.ToString() } }
+                { ":user_id_value", new AttributeValue { S = ModelsMapper.UserIdToKeyValue(userId) } },
+                { ":channel_prefix", new AttributeValue { S = ModelsMapper.ChannelIdPrefix } }
             },
+            ProjectionExpression = $"{DynamoDbConfig.PartitionKeyName}"
         };
-        
         
         var userChannelsResponse = await _dynamoDbClient.QueryAsync(userChannelsQueryRequest, cancellationToken);
         if (userChannelsResponse.Items.Any() is false)
         {
             return Array.Empty<Channel>();
         }
-
+        
         var batchChannelsRequest = new BatchGetItemRequest
         {
             RequestItems = new Dictionary<string, KeysAndAttributes>
             {
-                [DynamoDbConfig.Channels.TableName] = new()
+                [DynamoDbConfig.TableName] = new()
                 {
                     Keys = userChannelsResponse.Items
                         .Select(t => new Dictionary<string, AttributeValue>
                         {
-                            [DynamoDbConfig.Channels.PrimaryKeyName] = new () { N = t[DynamoDbConfig.Channels.PrimaryKeyName].N}
+                            [DynamoDbConfig.PartitionKeyName] = t[DynamoDbConfig.PartitionKeyName],
+                            [DynamoDbConfig.SortKeyName] = t[DynamoDbConfig.PartitionKeyName],
                         })
                         .ToList(),
                 }
@@ -133,46 +67,32 @@ internal class TelegramRepository : ITelegramRepository
         };
 
         var channelsResponse = await _dynamoDbClient.BatchGetItemAsync(batchChannelsRequest, cancellationToken);
-        var channels = channelsResponse.Responses[DynamoDbConfig.Channels.TableName]
+        var channels = channelsResponse.Responses[DynamoDbConfig.TableName]
             .Select(t => t.ToChannel())
             .ToList();
         
         return channels;
     }
+    
+    private async Task<bool> PutIfNotExists(Dictionary<string, AttributeValue> item, CancellationToken cancellationToken)
+    {
+        var channelRequest = new PutItemRequest
+        {
+            TableName = DynamoDbConfig.TableName,
+            Item = item,
+            ConditionExpression = $"attribute_not_exists({DynamoDbConfig.PartitionKeyName}) AND attribute_not_exists({DynamoDbConfig.SortKeyName})",
+        };
 
-    // private async Task Text()
-    // {
-    //     // Create a list of primary key objects 
-    //     List<Dictionary<string, AttributeValue>> keys = new List<Dictionary<string, AttributeValue>>();
-    //
-    //     // Add each item to retrieve
-    //     keys.Add(new Dictionary<string, AttributeValue>
-    //     {
-    //        {"ChannelId", new AttributeValue{N = "1"}} 
-    //     });
-    //
-    //     keys.Add(new Dictionary<string, AttributeValue>
-    //     {
-    //        {"ChannelId", new AttributeValue{N = "2"}}
-    //     });
-    //
-    //     // Create the BatchGetItem request
-    //     BatchGetItemRequest request = new BatchGetItemRequest
-    //     {
-    //        RequestItems = 
-    //        {
-    //           { 
-    //              "Channels", // Table name
-    //              keys 
-    //           }
-    //        }
-    //     };
-    //
-    //     // Call DynamoDB client
-    //     var response = await dynamoDBClient.BatchGetItemAsync(request);
-    //
-    //     // Deserialize the results
-    //     ponse.Responses["Channels"];
-    //
-    // }
+        try
+        {
+            await _dynamoDbClient.PutItemAsync(channelRequest, cancellationToken);
+        }
+        catch (ConditionalCheckFailedException ex) when(ex.ErrorCode is "ConditionalCheckFailedException")
+        {
+            Console.WriteLine(ex.Message);
+            return false;
+        }
+
+        return true;
+    }
 }

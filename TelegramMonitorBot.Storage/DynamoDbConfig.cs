@@ -2,24 +2,21 @@
 
 internal static class DynamoDbConfig
 {
-    internal static class Users
-    {
-        internal const string TableName = "Users";
-        internal const string PrimaryKeyName = "UserId";
-    }
+    internal const string TableName = "ChannelUsers";
+    internal const string GlobalSecondaryIndexName = "ChannelUsers";
     
-    internal static class Channels
-    {
-        internal const  string TableName = "Channels";
-        internal const string PrimaryKeyName = "ChannelId";
-    }
+    internal const string PartitionKeyName = "PartitionKey";
+    internal const string SortKeyName = "SortKey";
 
-
-    internal static class UserChannels
+    internal static class Attributes
     {
-        internal  const string TableName = "UserChannels";
-        internal const string HashKeyName = "UserId";
-        internal const string RangeKeyName = "ChannelId";
+        internal static string ChannelName => "Name";
+        internal static string ChannelCreated => "Created";
+        internal static string UserName => "Name";
+        internal static string UserCreated => "Created";
+        
+        internal static string ChannelUserCreated => "Created";
+        internal static string ChannelUserPhrases => "Phrases";
+
     }
-    
 }

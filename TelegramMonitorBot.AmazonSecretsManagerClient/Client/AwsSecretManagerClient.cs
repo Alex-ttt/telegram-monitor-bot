@@ -21,7 +21,7 @@ public class AwsSecretManagerClient : IAwsSecretManagerClient
 
     internal async Task<TelegramApiOptions> GetTelegramApiOptions(CancellationToken cancellationToken)
     {
-        var list = await _client.ListSecretsAsync(new ListSecretsRequest()
+        var list = await _client.ListSecretsAsync(new ListSecretsRequest
         {
             
         }, cancellationToken: cancellationToken);

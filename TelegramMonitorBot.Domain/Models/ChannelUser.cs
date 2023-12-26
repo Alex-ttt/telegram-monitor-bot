@@ -1,17 +1,21 @@
 ﻿namespace TelegramMonitorBot.Domain.Models;
 
-public class UserChannel
+public class ChannelUser
 {
-    public UserChannel(long userId, long channelId, List<string>? phrases = null)
+    public ChannelUser(long channelId, long userId, List<string>? phrases = null)
     {
         UserId = userId;
         ChannelId = channelId;
         Phrases = phrases;
     }
+    
+    public ChannelUser(Channel channel, User user, List<string>? phrases = null) 
+        : this(channel.ChannelId, user.UserId, phrases)
+    {
+    }
 
     public long UserId { get; }
     public long ChannelId { get; }
     public List<string>? Phrases { get; }
-    
     public DateTimeOffset Created { get; init; } = DateTimeOffset.UtcNow;
 }

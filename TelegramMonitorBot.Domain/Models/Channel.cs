@@ -4,6 +4,7 @@ public class Channel
 {
     public long ChannelId { get; }
     public string Name { get; }
+    public DateTimeOffset Created { get; init; } = DateTimeOffset.UtcNow;
 
     public Channel(long channelId, string name)
     {

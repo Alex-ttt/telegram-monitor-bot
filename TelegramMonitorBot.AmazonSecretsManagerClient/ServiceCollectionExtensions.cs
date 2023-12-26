@@ -1,8 +1,6 @@
 ﻿using System.Text.Json;
-using Amazon;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using TelegramMonitorBot.AmazonSecretsManagerClient.Client;
 using TelegramMonitorBot.Configuration.Options;
 

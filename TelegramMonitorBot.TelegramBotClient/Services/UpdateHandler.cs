@@ -57,55 +57,41 @@ public class UpdateHandler : IUpdateHandler
     {
         _logger.LogInformation("Receive message type: {MessageType}", message.Type);
         if (message.Text is not { } messageText)
+        {
             return;
+        }
         
-        // if (Math.PI > 1)
-        // {
-        //     await _botClient.SendChatActionAsync(
-        //         chatId: message.Chat.Id,
-        //         chatAction: ChatAction.Typing,
-        //         cancellationToken: cancellationToken);
-        //     
-        //     await _botClient.SendDiceAsync(
-        //         chatId: message.Chat.Id,
-        //         emoji: Emoji.Dice,
-        //         cancellationToken: cancellationToken);
-        //     
-        //     await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
-        //     
-        //     var lastMsg = await _botClient.SendTextMessageAsync(
-        //         message.Chat.Id,
-        //         "Ксюша!",
-        //         cancellationToken: cancellationToken);
-        //     
-        //     return;
-        // }
 
+        var action = messageText.Split(' ')[0] switch
+        {
+            "/about"     => SendAbout(message, cancellationToken),
+            "/channels"     => Channels(message, cancellationToken),
+            "/my_channels"     => MyChannels(message, cancellationToken),
+            //
+            // "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
+            "/keyboard"        => SendReplyKeyboard(_botClient, message, cancellationToken),
+            // "/remove"          => RemoveKeyboard(_botClient, message, cancellationToken),
+            // "/photo"           => SendFile(_botClient, message, cancellationToken),
+            // "/request"         => RequestContactAndLocation(_botClient, message, cancellationToken),
+            // "/inline_mode"     => StartInlineQuery(_botClient, message, cancellationToken),
+            // "/throw"           => FailingHandler(_botClient, message, cancellationToken),
+            _                  => Usage(_botClient, message, cancellationToken)
+        };
+        
+        
         // var action = messageText.Split(' ')[0] switch
         // {
-        //     "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
+        //     "/about"     => SendAbout(message, cancellationToken),
+        //     "/add_channel"     => AddChannel(_botClient, message, cancellationToken),
+        //     "/channels"     => MyChannels(_botClient, message, cancellationToken),
         //     "/keyboard"        => SendReplyKeyboard(_botClient, message, cancellationToken),
         //     "/remove"          => RemoveKeyboard(_botClient, message, cancellationToken),
         //     "/photo"           => SendFile(_botClient, message, cancellationToken),
         //     "/request"         => RequestContactAndLocation(_botClient, message, cancellationToken),
         //     "/inline_mode"     => StartInlineQuery(_botClient, message, cancellationToken),
         //     "/throw"           => FailingHandler(_botClient, message, cancellationToken),
-        //     _                  => Usage(_botClient, message, cancellationToken)
+        //     _                  => AddUserChannel(message, cancellationToken)
         // };
-        
-        
-        var action = messageText.Split(' ')[0] switch
-        {
-            "/add_channel"     => AddChannel(_botClient, message, cancellationToken),
-            "/my_channels"     => MyChannels(_botClient, message, cancellationToken),
-            "/keyboard"        => SendReplyKeyboard(_botClient, message, cancellationToken),
-            "/remove"          => RemoveKeyboard(_botClient, message, cancellationToken),
-            "/photo"           => SendFile(_botClient, message, cancellationToken),
-            "/request"         => RequestContactAndLocation(_botClient, message, cancellationToken),
-            "/inline_mode"     => StartInlineQuery(_botClient, message, cancellationToken),
-            "/throw"           => FailingHandler(_botClient, message, cancellationToken),
-            _                  => AddUserChannel(message, cancellationToken)
-        };
 
 
         Message sentMessage = await action;
@@ -197,24 +183,6 @@ public class UpdateHandler : IUpdateHandler
             return sentMessage;
         }
         
-        async Task<Message> MyChannels(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-        {
-            var channels = await _telegramRepository.GetChannels(message.Chat.Id, cancellationToken);
-
-            if (channels.Any() is false)
-            {
-                return await botClient.SendTextMessageAsync(
-                    message.Chat.Id,
-                    "У вас ещё нет каналов",
-                    cancellationToken: cancellationToken);;
-            }
-            
-            return await botClient.SendTextMessageAsync(
-                message.Chat.Id,
-                $"Ваши каналы: {string.Join(", ", channels.Select(t => "@" + t.Name))}",
-                cancellationToken: cancellationToken);;
-        }
-        
         // Send inline keyboard
         // You can process responses in BotOnCallbackQueryReceived handler
         static async Task<Message> SendInlineKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
@@ -250,9 +218,32 @@ public class UpdateHandler : IUpdateHandler
 
         static async Task<Message> SendReplyKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
         {
-            ReplyKeyboardMarkup replyKeyboardMarkup = new(
+            var button = KeyboardButton.WithRequestChat("Select chat", new KeyboardButtonRequestChat
+            {
+                ChatIsChannel = true,
+
+            });
+            
+            var inlineKeyboard = new InlineKeyboardMarkup(new[]
+            {
                 new[]
                 {
+                    InlineKeyboardButton.WithCallbackData("Games", "5")
+                }
+            });
+            
+            ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup(
+                new[]
+                {
+                        new KeyboardButton[] 
+                        { 
+                            KeyboardButton.WithRequestChat("Select chat", new KeyboardButtonRequestChat
+                            {
+                                ChatIsChannel = true,
+                                
+                            })
+                            
+                        },
                         new KeyboardButton[] { "1.1", "1.2" },
                         new KeyboardButton[] { "2.1", "2.2" },
                 })
@@ -260,11 +251,35 @@ public class UpdateHandler : IUpdateHandler
                 ResizeKeyboard = true
             };
 
-            return await botClient.SendTextMessageAsync(
+            var inlineButtons = new ReplyKeyboardMarkup(
+                new []
+                {
+                    new KeyboardButton[] {"ReplyKeyboardMarkup"},
+                    new KeyboardButton[] {"1.1", "1.2"},
+                    new KeyboardButton[] {"2.1", "2.2"},
+                });
+            
+            var m1 = await botClient.SendTextMessageAsync(
+                            chatId: message.Chat.Id,
+                            text: "InlineKeyboardMarkup",
+                            replyMarkup: inlineKeyboard,
+                            cancellationToken: cancellationToken);
+            
+            var m2 = await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "Choose",
+                text: "ForceReplyMarkup",
+                replyMarkup: new ForceReplyMarkup()
+                ,
+                cancellationToken: cancellationToken);
+            
+            var m3 = await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "ReplyKeyboardMarkup",
                 replyMarkup: replyKeyboardMarkup,
                 cancellationToken: cancellationToken);
+
+            return m3;
+
         }
 
         static async Task<Message> RemoveKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
@@ -347,11 +362,77 @@ public class UpdateHandler : IUpdateHandler
         }
     }
 
+    private async Task<Message> Channels(Message message, CancellationToken cancellationToken)
+    {
+        // var subscribe = KeyboardButton.WithRequestChat(
+        //     "Подписаться",
+        //     new KeyboardButtonRequestChat()
+        //     {
+        //         ChatIsChannel = true,
+        //
+        //     });
+        
+        
+        var inlineKeyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("Мои каналы", "/my_channels"),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("Подписаться", "subscribe"),
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("Отписаться", "unsubscribe"),
+            }
+        });
+        
+        return await _botClient.SendTextMessageAsync(
+            chatId: message.Chat.Id,
+            text: "Управление каналами",
+            replyMarkup: inlineKeyboard,
+            cancellationToken: cancellationToken);
+    }
+
+    private Task<Message> SendAbout(Message message, CancellationToken cancellationToken)
+    {
+        return _botClient.SendTextMessageAsync(
+            message.Chat.Id,
+            "Бот для подписки на каналы телеграм",
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task<Message> MyChannels(Message message, CancellationToken cancellationToken)
+    {
+        var channels = await _telegramRepository.GetChannels(message.Chat.Id, cancellationToken);
+
+        if (channels.Any() is false)
+        {
+            return await _botClient.SendTextMessageAsync(
+                message.Chat.Id,
+                "У вас ещё нет каналов",
+                cancellationToken: cancellationToken);;
+        }
+            
+        return await _botClient.SendTextMessageAsync(
+            message.Chat.Id,
+            $"Ваши каналы: {string.Join(", ", channels.Select(t => "@" + t.Name))}",
+            cancellationToken: cancellationToken);;
+    }
+    
     // Process Inline Keyboard callback data
     private async Task BotOnCallbackQueryReceived(CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Received inline keyboard callback from: {CallbackQueryId}", callbackQuery.Id);
-
+        
+        if (callbackQuery.Data == "/my_channels")
+        {
+            await MyChannels(callbackQuery.Message!, cancellationToken);
+            return;
+        }
+        
         await _botClient.AnswerCallbackQueryAsync(
             callbackQueryId: callbackQuery.Id,
             text: $"Received {callbackQuery.Data}",
