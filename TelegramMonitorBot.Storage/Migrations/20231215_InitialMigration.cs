@@ -43,7 +43,8 @@ public class InitialMigration : MigrationBase
                     },
                     Projection = new Projection
                     {
-                        ProjectionType = "KEYS_ONLY",
+                        ProjectionType = "INCLUDE",
+                        NonKeyAttributes = { DynamoDbConfig.Attributes.ChannelUserCreated},
                     },
                     ProvisionedThroughput = new ProvisionedThroughput
                     {
@@ -58,7 +59,7 @@ public class InitialMigration : MigrationBase
                 WriteCapacityUnits = 3
             },
         };
-
+        
         _ = await client.CreateTableAsync(request);
     }
 }

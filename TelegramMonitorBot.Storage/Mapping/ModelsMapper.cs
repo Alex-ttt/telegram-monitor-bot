@@ -63,7 +63,6 @@ internal static class ModelsMapper
         var channelIdKey = dictionary[PartitionKeyName].S;
         var channelId = long.Parse(channelIdKey[ChannelIdPrefix.Length..]);
         
-        
         var name = dictionary[Attributes.ChannelName].S;
         var created = DateTimeOffset.Parse(dictionary[Attributes.ChannelCreated].S);
         
@@ -72,5 +71,21 @@ internal static class ModelsMapper
             Created = created,
         }; 
     }
-    
+
+    internal static ChannelUser ToChannelUser(this Dictionary<string, AttributeValue> dictionary)
+    {
+        var channelIdKey = dictionary[PartitionKeyName].S;
+        var channelId = long.Parse(channelIdKey[ChannelIdPrefix.Length..]);
+        
+        var userIdKey = dictionary[SortKeyName].S;
+        var userId = long.Parse(userIdKey[UserIdPrefix.Length..]);
+
+        List<string>? phrases = null;
+        if(dictionary.TryGetValue(Attributes.ChannelUserPhrases, out var phrasesAttribute))
+        {
+            phrases = phrasesAttribute.SS;
+        }
+
+        return new ChannelUser(channelId, userId, phrases);
+    }
 }

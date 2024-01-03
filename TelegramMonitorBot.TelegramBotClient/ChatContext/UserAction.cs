@@ -7,4 +7,6 @@ public enum UserAction
     UnsubscribeFromChannel,
     AddSearchPhrase,
     RemoveSearchPhrase,
+    CallAddPhrases,
+    PhrasesAdded
 }

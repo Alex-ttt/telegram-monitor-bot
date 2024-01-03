@@ -10,4 +10,5 @@ public enum ChatState
     Unsubscribed,
     WaitingForPhaseToAdd,
     WaitingForPhaseToRemove,
+    PhrasesAdded
 }

@@ -4,10 +4,10 @@ public class ChatContextManager
 {
     private readonly Dictionary<long, ChatContext> _userContexts = new ();
 
-    public ChatState GetCurrentState(long chatId)
+    public ChatContext GetCurrentContext(long chatId)
     {
         var userContext = GetChatContext(chatId);
-        return userContext.CurrentState;
+        return userContext;
     }
     
     public void OnAddingChannel(long chatId)
@@ -22,6 +22,17 @@ public class ChatContextManager
         userContext.Move(ChatState.Subscribed, UserAction.SubscribeToChannel);
     }
     
+    public void OnPhrasesAdding(long chatId, long channelId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.WaitingForPhaseToAdd, UserAction.CallAddPhrases, channelId);
+    }
+    
+    public void OnPhrasesAdded(long chatId, long channelId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.PhrasesAdded, UserAction.PhrasesAdded, channelId);
+    }
 
     private ChatContext GetChatContext(long chatId)
     {
@@ -35,13 +46,14 @@ public class ChatContextManager
 
         return userContext;
     }
-    
 }
 
 public class ChatContext
 {
 
     private readonly List<UserAction> _userActions = new();
+
+    public long? ChannelId = null;
 
     public ChatContext(long chatId)
     {
@@ -53,11 +65,11 @@ public class ChatContext
     public IReadOnlyCollection<UserAction> UserActions => _userActions;
     
     public ChatState CurrentState { get; private set; } = ChatState.MainMenu;
-
-
-    public void Move(ChatState state, UserAction action)
+    
+    public void Move(ChatState state, UserAction action, long? channelId = null)
     {
         CurrentState = state;
+        ChannelId = channelId;
         _userActions.Add(action);
     }
 }

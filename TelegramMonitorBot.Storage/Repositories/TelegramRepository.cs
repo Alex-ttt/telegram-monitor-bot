@@ -4,6 +4,7 @@ using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Caching;
 using TelegramMonitorBot.Storage.Mapping;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
+using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 
 namespace TelegramMonitorBot.Storage.Repositories;
 
@@ -21,28 +22,68 @@ internal class TelegramRepository : ITelegramRepository
     }
 
     // TODO consider using result
+    public async Task<bool> CheckChannelWithUser(long channelId, long userId, CancellationToken cancellationToken = default)
+    {
+        var channelUser = await GetChannelUser(channelId, userId, cancellationToken);
+        return channelUser is not null;
+    }
+
+    public async Task<Channel?> GetChannel(long channelId, CancellationToken cancellationToken = default)
+    {
+        if(_memoryCache.GetChannel(channelId) is { } channel)
+        {
+            return channel;
+        }
+        
+        var getChannelRequest = new GetItemRequest
+        {
+            TableName = DynamoDbConfig.TableName,
+            Key =
+            {
+                [DynamoDbConfig.PartitionKeyName] = new() { S = ModelsMapper.ChannelIdToKeyValue(channelId) },
+                [DynamoDbConfig.SortKeyName] = new() { S = ModelsMapper.ChannelIdToKeyValue(channelId) },
+            }
+        };
+        
+        var channelResult = await _dynamoDbClient.GetItemAsync(getChannelRequest, cancellationToken);
+        
+        var result =
+            channelResult.Item?.Any() is true
+                ? channelResult.Item.ToChannel()
+                : null;
+        
+        if (result is not null)
+        {
+            _memoryCache.SetChannel(result);
+        }
+        
+        return result;
+    }
+    
+
     public async Task<bool> PutUserChannel(User user, Channel channel, CancellationToken cancellationToken)
     {
         await Task.WhenAll(
-            PutIfNotExists(channel.ToDictionary(), cancellationToken),
-            PutIfNotExists(user.ToDictionary(), cancellationToken));
+            PutItemIfNotExists(channel.ToDictionary(), cancellationToken),
+            PutItemIfNotExists(user.ToDictionary(), cancellationToken));
         
-        var channelUser = new ChannelUser( channel, user);
-        var channelUserAdded = await PutIfNotExists(channelUser.ToDictionary(), cancellationToken);
+        var channelUser = new ChannelUser(channel, user);
+        var channelUserAdded = await PutItemIfNotExists(channelUser.ToDictionary(), cancellationToken);
 
         if (channelUserAdded)
         {
             _memoryCache.ResetUserChannels(user.UserId);
+            _memoryCache.ResetChannel(channel.ChannelId);
         }
 
         return channelUserAdded;
     }
 
-    public async Task<ICollection<Channel>> GetChannels(long userId, CancellationToken cancellationToken = default)
+    public async Task<PageResult<Channel>> GetChannels(long userId, Pager? pager, CancellationToken cancellationToken = default)
     {
         if(_memoryCache.GetUserChannels(userId) is {} cached)
         {
-            return cached;
+            return GetPageResult(cached, pager);
         }
         
         var userChannelsQueryRequest = new QueryRequest
@@ -55,14 +96,14 @@ internal class TelegramRepository : ITelegramRepository
                 { ":user_id_value", new AttributeValue { S = ModelsMapper.UserIdToKeyValue(userId) } },
                 { ":channel_prefix", new AttributeValue { S = ModelsMapper.ChannelIdPrefix } }
             },
-            ProjectionExpression = $"{DynamoDbConfig.PartitionKeyName}"
+            ProjectionExpression = $"{DynamoDbConfig.PartitionKeyName}, {DynamoDbConfig.Attributes.ChannelUserCreated}"
         };
         
         var userChannelsResponse = await _dynamoDbClient.QueryAsync(userChannelsQueryRequest, cancellationToken);
         if (userChannelsResponse.Items.Any() is false)
         {
             _memoryCache.SetUserChannels(userId, Array.Empty<Channel>());
-            return Array.Empty<Channel>();
+            return PageResult<Channel>.EmptyPageResult;
         }
         
         var batchChannelsRequest = new BatchGetItemRequest
@@ -82,18 +123,83 @@ internal class TelegramRepository : ITelegramRepository
             }
         };
 
+        var userSubscribedToChannelDate = userChannelsResponse.Items
+                .ToDictionary(
+                    t => t[DynamoDbConfig.PartitionKeyName].S,
+                    t => DateTimeOffset.Parse(t[DynamoDbConfig.Attributes.ChannelCreated].S));
+        
         // TODO handle channelsResponse.UnprocessedKeys
         var channelsResponse = await _dynamoDbClient.BatchGetItemAsync(batchChannelsRequest, cancellationToken);
         var channels = channelsResponse.Responses[DynamoDbConfig.TableName]
+            .OrderBy(OrderSelector)
             .Select(t => t.ToChannel())
             .ToList();
         
         _memoryCache.SetUserChannels(userId, channels);
         
-        return channels;
+        return GetPageResult(channels, pager);
+
+        DateTimeOffset OrderSelector(Dictionary<string, AttributeValue> t) => userSubscribedToChannelDate[t[DynamoDbConfig.PartitionKeyName].S];
+    }
+
+    public async Task AddPhrases(ChannelUser channelUser, CancellationToken cancellationToken)
+    {
+        if (channelUser.Phrases is not { Count: > 0 } phrases)
+        {
+            _memoryCache.SetChannelUserPhrases(channelUser.ChannelId, channelUser.UserId, Array.Empty<string>());
+            return;
+        }
+        
+        var existedChannelUser = await GetChannelUser(channelUser.ChannelId, channelUser.UserId, cancellationToken);
+        if (existedChannelUser is null)
+        {
+            
+            return;
+        }
+        
+        existedChannelUser.AddPhrases(phrases);
+        await PutItem(existedChannelUser.ToDictionary(), cancellationToken);
+        _memoryCache.ResetChannelUserPhrases(channelUser.ChannelId, channelUser.UserId);
+    }
+
+    public async Task<ICollection<string>> GetChannelUserPhrases(long channelId, long userId, CancellationToken cancellationToken)
+    {
+        if (_memoryCache.GetChannelUserPhrases(channelId, userId) is { } cachedPhrases)
+        {
+            return cachedPhrases;
+        }
+        
+        var channelUser = await GetChannelUser(channelId, userId, cancellationToken);
+        ICollection<string> result = 
+            channelUser?.Phrases?.Any() is true 
+                ? channelUser.Phrases
+                : Array.Empty<string>();
+        
+        _memoryCache.SetChannelUserPhrases(channelId, userId, result);
+        
+        return result;
+    }
+
+    private async Task<ChannelUser?> GetChannelUser(long channelId, long userId, CancellationToken cancellationToken)
+    {
+        var getChannelUserRequest = new GetItemRequest
+        {
+            TableName = DynamoDbConfig.TableName,
+            Key =
+            {
+                [DynamoDbConfig.PartitionKeyName] = new() { S = ModelsMapper.ChannelIdToKeyValue(channelId) },
+                [DynamoDbConfig.SortKeyName] = new() { S = ModelsMapper.UserIdToKeyValue(userId) },
+            },
+        };
+        
+        var channelUserResult = await _dynamoDbClient.GetItemAsync(getChannelUserRequest, cancellationToken);
+        return 
+            channelUserResult.Item?.Any() is true 
+                ? channelUserResult.Item.ToChannelUser() 
+                : null;
     }
     
-    private async Task<bool> PutIfNotExists(Dictionary<string, AttributeValue> item, CancellationToken cancellationToken)
+    private async Task<bool> PutItemIfNotExists(Dictionary<string, AttributeValue> item, CancellationToken cancellationToken)
     {
         var channelRequest = new PutItemRequest
         {
@@ -108,10 +214,39 @@ internal class TelegramRepository : ITelegramRepository
         }
         catch (ConditionalCheckFailedException ex) when(ex.ErrorCode is "ConditionalCheckFailedException")
         {
-            Console.WriteLine(ex.Message);
             return false;
         }
 
         return true;
+    }
+    
+    private async Task PutItem(Dictionary<string, AttributeValue> item, CancellationToken cancellationToken)
+    {
+        var channelRequest = new PutItemRequest
+        {
+            TableName = DynamoDbConfig.TableName,
+            Item = item,
+        };
+
+        await _dynamoDbClient.PutItemAsync(channelRequest, cancellationToken);
+    }
+    
+    private static PageResult<TItem> GetPageResult<TItem>(ICollection<TItem> items, Pager? pager)
+    {
+        if (pager is null)
+        {
+            return new PageResult<TItem>(items, 1, 1);
+        }
+        
+        var pageItems = items
+            .Skip((pager.Page - 1) * pager.PageSize)
+            .Take(pager.PageSize);
+        
+        var pagesCount = 
+            items.Count / pager.PageSize 
+            + (items.Count / pager.PageSize > 0 ? 1 : 0);
+        
+
+        return new PageResult<TItem>(pageItems, pager.Page, pagesCount);
     }
 }

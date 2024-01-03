@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
@@ -6,7 +7,9 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
+using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 
@@ -22,6 +25,19 @@ public class UpdateHandler : IUpdateHandler
     private readonly ITelegramRepository _telegramRepository;
     private readonly ITelegramApiClient _telegramApiClient;
     
+    private const string ChannelPagePlaceholder = "number";
+    private static Regex ChannelPageRegex = new Regex(@$"^\/my_channels_(?<{ChannelPagePlaceholder}>-?\d+)$", RegexOptions.Compiled);
+    
+    private const string EditChannelIdPlaceholder = "number";
+    private static Regex EditChannelIdRegex = new Regex(@$"^\/edit_channel_(?<{EditChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
+
+    private const string AddPhrasesChannelIdPlaceholder = "number";
+    private static Regex AddPhrasesChannelIdRegex = new Regex(@$"^\/add_phrases_to_(?<{AddPhrasesChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
+    
+    private const string RemovePhrasesChannelIdPlaceholder = "number";
+    private const string RemovePhrasesPagePlaceholder = "page";
+    private static Regex  RemovePhrasesChannelIdRegex = new Regex(@$"^\/remove_phrases_from_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
+    
     public UpdateHandler(
         ITelegramBotClient botClient, 
         ILogger<UpdateHandler> logger, 
@@ -30,6 +46,7 @@ public class UpdateHandler : IUpdateHandler
         (_botClient, _chatContextManager, _telegramRepository, _telegramApiClient, _logger) = 
             (botClient, chatContextManager, telegramRepository, telegramApiClient, logger);
     }
+    
 
     public async Task HandleUpdateAsync(ITelegramBotClient telegramBotClient, Update update, CancellationToken cancellationToken)
     {
@@ -60,14 +77,27 @@ public class UpdateHandler : IUpdateHandler
         {
             return;
         }
-        
 
-        var action = messageText.Split(' ')[0] switch
+        var chatContext = _chatContextManager.GetCurrentContext(message.Chat.Id);
+        if (chatContext.CurrentState == ChatState.WaitingForChannelToSubscribe)
+        {
+            await AddUserChannel(message, cancellationToken);
+            return;
+        }
+
+        if (chatContext is {CurrentState: ChatState.WaitingForPhaseToAdd, ChannelId: { } channelId})
+        {
+            await AddPhasesToChannel(message, channelId, cancellationToken);
+            return;
+        }
+
+        var firstWord = messageText.Split(' ')[0]; 
+        var action = firstWord switch
         {
             "/about"     => SendAbout(message, cancellationToken),
             "/channels"     => Channels(message, cancellationToken),
-            "/my_channels"     => MyChannels(message, cancellationToken),
-            //
+            "/my_channels"     => MyChannels(message, null, cancellationToken),
+            
             // "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
             "/keyboard"        => SendReplyKeyboard(_botClient, message, cancellationToken),
             // "/remove"          => RemoveKeyboard(_botClient, message, cancellationToken),
@@ -109,8 +139,8 @@ public class UpdateHandler : IUpdateHandler
 
         async Task<Message> AddUserChannel(Message message, CancellationToken cancellationToken)
         {
-            var currentState = _chatContextManager.GetCurrentState(message.Chat.Id);
-            if (currentState == ChatState.WaitingForChannelToSubscribe || Math.E > 0)
+            var context = _chatContextManager.GetCurrentContext(message.Chat.Id);
+            if (context.CurrentState == ChatState.WaitingForChannelToSubscribe || Math.E > 0)
             {
                 var channel = await _telegramApiClient.FindChannelByName(message.Text!); // TODO think about null text
                 if (channel is null)
@@ -121,18 +151,27 @@ public class UpdateHandler : IUpdateHandler
                         cancellationToken: cancellationToken);
                 }
 
-                var user = new Domain.Models.User(message.Chat.Id, message.Chat.Username ?? "_unknown_");
+                var alreadySubscribed = await _telegramRepository.CheckChannelWithUser(channel.Id, message.Chat.Id);
+                if (alreadySubscribed)
+                {
+                    return await _botClient.SendTextMessageAsync(
+                        message.Chat.Id, 
+                        $"Подписка на данный канал уже существует", 
+                        cancellationToken: cancellationToken);
+                }
+
+                var user = new Domain.Models.User(message.Chat.Id, message.From!.Username ?? "_unknown_");
                 
                 await _telegramRepository.PutUserChannel(
-                    new (message.Chat.Id, message.Chat.Username ?? "_unknown_"),
-                    new (channel.Id, channel.Title),
+                    new (message.From.Id, message.From.Username ?? "_unknown_"),
+                    new (channel.Id, channel.Name),
                     cancellationToken);
                 
                 _chatContextManager.OnAddedChannel(message.Chat.Id);
                 
                 return await _botClient.SendTextMessageAsync(
                     message.Chat.Id, 
-                    $"Канал {message.Text} добавлен", 
+                    $"Канал @{channel.Name} добавлен", 
                     cancellationToken: cancellationToken);
             }
             
@@ -141,8 +180,8 @@ public class UpdateHandler : IUpdateHandler
         
         async Task<Message> TextMessage(Message message, CancellationToken cancellationToken)
         {
-            var currentState = _chatContextManager.GetCurrentState(message.Chat.Id);
-            if (currentState == ChatState.WaitingForChannelToSubscribe)
+            var context = _chatContextManager.GetCurrentContext(message.Chat.Id);
+            if (context.CurrentState == ChatState.WaitingForChannelToSubscribe)
             {
                 var channel = await _telegramApiClient.FindChannelByName(message.Text!); // TODO think about null text
                 if (channel is null)
@@ -218,6 +257,7 @@ public class UpdateHandler : IUpdateHandler
 
         static async Task<Message> SendReplyKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
         {
+            
             var button = KeyboardButton.WithRequestChat("Select chat", new KeyboardButtonRequestChat
             {
                 ChatIsChannel = true,
@@ -362,6 +402,50 @@ public class UpdateHandler : IUpdateHandler
         }
     }
 
+    private async Task AddPhasesToChannel(Message message, long channelId, CancellationToken cancellationToken)
+    {
+        var channel = await _telegramRepository.GetChannel(channelId, cancellationToken);
+        if (channel is null)
+        {
+            await _botClient.SendTextMessageAsync(
+                message.Chat.Id,
+                "Канал не найден");
+        }
+
+        var phrases = message.Text!
+            .Split("\n")
+            .Select(t => t.Trim())
+            .Distinct()
+            .ToList();
+
+        if (phrases.Any(t => t.Length > 40))
+        {
+            await _botClient.SendTextMessageAsync(
+                message.Chat.Id,
+                "Длина одной фразы не должна превышать 50 символов");
+            
+            return;
+        }
+
+        var userId = message.From!.Id;
+        var channelUser = new ChannelUser(channel!.ChannelId, userId, phrases);
+        await _telegramRepository.AddPhrases(channelUser, cancellationToken);
+
+        var keyboard = new InlineKeyboardMarkup(
+            new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData("Добавить другие фразы", $"/add_phrases_to_{channel.ChannelId}"), },
+                new[] { InlineKeyboardButton.WithCallbackData("Назад к моим каналам", "/my_channels"), },
+            });
+        
+        await _botClient.SendTextMessageAsync(
+            message.Chat.Id,
+            "Фазы успешно добавлены",
+            replyMarkup: keyboard);
+        
+        _chatContextManager.OnPhrasesAdded(userId, channelId);
+    }
+
     private async Task<Message> Channels(Message message, CancellationToken cancellationToken)
     {
         // var subscribe = KeyboardButton.WithRequestChat(
@@ -381,12 +465,8 @@ public class UpdateHandler : IUpdateHandler
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("Подписаться", "subscribe"),
+                InlineKeyboardButton.WithCallbackData("Подписаться", "/subscribe"),
             },
-            new[]
-            {
-                InlineKeyboardButton.WithCallbackData("Отписаться", "unsubscribe"),
-            }
         });
         
         return await _botClient.SendTextMessageAsync(
@@ -404,9 +484,9 @@ public class UpdateHandler : IUpdateHandler
             cancellationToken: cancellationToken);
     }
 
-    private async Task<Message> MyChannels(Message message, CancellationToken cancellationToken)
+    private async Task<Message> MyChannels(Message message, Pager? pager, CancellationToken cancellationToken)
     {
-        var channels = await _telegramRepository.GetChannels(message.Chat.Id, cancellationToken);
+        PageResult<Channel> channels = await _telegramRepository.GetChannels(message.Chat.Id, pager ?? GetDefaultChannelsPager(1), cancellationToken);
 
         if (channels.Any() is false)
         {
@@ -415,21 +495,103 @@ public class UpdateHandler : IUpdateHandler
                 "У вас ещё нет каналов",
                 cancellationToken: cancellationToken);;
         }
-            
-        return await _botClient.SendTextMessageAsync(
+
+        var buttons = channels
+            .Select(t => new List<InlineKeyboardButton>
+            {
+                InlineKeyboardButton.WithUrl(t.Name, ChannelLink(t.Name)),
+                new InlineKeyboardButton("Настроить")
+                {
+                    CallbackData = $"/edit_channel_{t.ChannelId}",
+                },
+            })
+            .ToList();
+
+        var navigationButtons = new List<InlineKeyboardButton>();
+        if (channels.PageNumber > 1)
+        {
+            navigationButtons.Add(InlineKeyboardButton.WithCallbackData("Назад", $"/my_channels_{channels.PageNumber - 1}"));
+        }
+        
+        if(channels.PagesCount > channels.PageNumber)
+        {
+            navigationButtons.Add(InlineKeyboardButton.WithCallbackData("Вперёд", $"/my_channels_{channels.PageNumber + 1}"));
+        }
+
+        if (navigationButtons.Count != 0)
+        {
+            buttons.Add(navigationButtons);    
+        }
+        
+        var keyboard = new InlineKeyboardMarkup(buttons);
+
+        var sent = await _botClient.SendTextMessageAsync(
             message.Chat.Id,
-            $"Ваши каналы: {string.Join(", ", channels.Select(t => "@" + t.Name))}",
-            cancellationToken: cancellationToken);;
+            "Полный список каналов, на которые вы подписаны",
+            replyMarkup: keyboard);
+
+        return sent;
     }
-    
+
+    private static string ChannelLink(string channelName) => $@"https://t.me/{channelName}";
+
     // Process Inline Keyboard callback data
     private async Task BotOnCallbackQueryReceived(CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Received inline keyboard callback from: {CallbackQueryId}", callbackQuery.Id);
         
-        if (callbackQuery.Data == "/my_channels")
+        if (callbackQuery.Data!.StartsWith("/my_channels"))
         {
-            await MyChannels(callbackQuery.Message!, cancellationToken);
+            Pager? pager = null;
+            var channelPageMatch = ChannelPageRegex.Match(callbackQuery.Data);
+            if (channelPageMatch.Success)
+            {
+                string extractedNumber = channelPageMatch.Groups[ChannelPagePlaceholder].Value;
+                pager = GetDefaultChannelsPager(int.Parse(extractedNumber));
+            }
+            
+            await MyChannels(callbackQuery.Message!, pager, cancellationToken);
+            return;
+        }
+
+        var editChannelMatch = EditChannelIdRegex.Match(callbackQuery.Data);
+        if (editChannelMatch.Success)
+        {
+            var channelIdString = editChannelMatch.Groups[EditChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            await EditChannel(callbackQuery.Message!, channelId, cancellationToken);
+            return;
+        }
+        
+        var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackQuery.Data);
+        if (addPhrasesMatch.Success)
+        {
+            var channelIdString = addPhrasesMatch.Groups[AddPhrasesChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            await PrepareForAddingPhrases(callbackQuery.Message!, channelId, cancellationToken);
+            return;
+        }
+        
+        var removePhrasesMathc = RemovePhrasesChannelIdRegex.Match(callbackQuery.Data);
+        if(removePhrasesMathc.Success)
+        {
+            var channelIdString = removePhrasesMathc.Groups[RemovePhrasesChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            var page = 1;
+            if (removePhrasesMathc.Groups[RemovePhrasesPagePlaceholder] is {Success: true} pageGroup)
+            {
+                // we need substring to have simplier regex 
+                // math starts with "_"
+                page = int.Parse(pageGroup.Value.Substring(1));
+            }
+            
+            await ShowChannelPhrases(callbackQuery.Message!, channelId, page, cancellationToken);
+            return;
+        }
+
+        if (callbackQuery.Data == "/subscribe")
+        {
+            await Subscribe(callbackQuery.Message!, cancellationToken);
             return;
         }
         
@@ -442,6 +604,154 @@ public class UpdateHandler : IUpdateHandler
             chatId: callbackQuery.Message!.Chat.Id,
             text: $"Received {callbackQuery.Data}",
             cancellationToken: cancellationToken);
+    }
+
+    private async Task ShowChannelPhrases(Message callbackQueryMessage, long channelId, int page, CancellationToken cancellationToken)
+    {
+        var phrases = await _telegramRepository.GetChannelUserPhrases(channelId, callbackQueryMessage.From!.Id, cancellationToken);
+        if (phrases.Count is 0)
+        {
+            var keyboard = new InlineKeyboardMarkup(
+                new[]
+                {
+                    new[] { InlineKeyboardButton.WithCallbackData("Добавить фразы", $"/add_phrases_to_{channelId}")},
+                    new[] { InlineKeyboardButton.WithCallbackData("Вернуться к моим каналам", "/my_channels")}
+                });
+            
+            await _botClient.SendTextMessageAsync(
+                callbackQueryMessage.Chat.Id,
+                "В данный канал еще не были добавлены фразы",
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+            
+            return;
+        }
+        
+        var channel = await _telegramRepository.GetChannel(channelId, cancellationToken);
+        if (channel is null)
+        {
+            await _botClient.SendTextMessageAsync(
+                callbackQueryMessage.Chat.Id,
+                "Канал не найден",
+                cancellationToken: cancellationToken);
+            
+            return;
+        }
+
+        var pager = GetDefaultPhrasesPager(page);
+        var pageResult = new PageResult<string>(phrases, pager);
+
+        var phrasesKeyboardButtons = pageResult
+            .Select(t => new List<InlineKeyboardButton>
+            {
+                new InlineKeyboardButton(t), 
+                InlineKeyboardButton.WithCallbackData("Удалить", $"/remove_phrase_{channelId}_{t}")
+            })
+            .ToList();
+        
+        phrasesKeyboardButtons.Add(new List<InlineKeyboardButton>
+        {
+            InlineKeyboardButton.WithCallbackData("Вернуться к каналу", $"/edit_channel_{channelId}")
+        });
+
+        var additionalButtons = new List<InlineKeyboardButton>();
+        if (pager.Page > 1)
+        {
+            additionalButtons.Add(
+                InlineKeyboardButton.WithCallbackData("Назад", $"/remove_phrases_from_{channelId}_{pager.Page - 1}"));
+        }
+
+        if (pageResult.PageNumber < pageResult.PagesCount)
+        {
+            additionalButtons.Add(
+                InlineKeyboardButton.WithCallbackData("Вперёд", $"/remove_phrases_from_{channelId}_{pager.Page + 1}"));
+        }
+
+        if (additionalButtons.Count is > 0)
+        {
+            phrasesKeyboardButtons.Add(additionalButtons);
+        }
+
+        var phrasesKeyboard = new InlineKeyboardMarkup(phrasesKeyboardButtons);
+        await _botClient.SendTextMessageAsync(
+            callbackQueryMessage.Chat.Id,
+            $"Список фраз для канала @{channel.Name}",
+            replyMarkup: phrasesKeyboard,
+            cancellationToken: cancellationToken);
+
+    }
+
+    private async Task PrepareForAddingPhrases(Message callbackQueryMessage, long channelId, CancellationToken cancellationToken)
+    {
+        var channel = await _telegramRepository.GetChannel(channelId, cancellationToken);
+        if (channel is null)
+        {
+            await _botClient.SendTextMessageAsync(
+                callbackQueryMessage.Chat.Id,
+                "Канал не найден",
+                cancellationToken: cancellationToken);
+            
+            return;
+        }
+
+        await _botClient.SendTextMessageAsync(
+            callbackQueryMessage.Chat.Id,
+            $"Введите фразы для поиска @{channel.Name}. Можно написать несколько фраз - каждую с новой строки");
+
+        _chatContextManager.OnPhrasesAdding(callbackQueryMessage.Chat.Id, channel.ChannelId);
+
+        // TODO handle context states
+
+    }
+
+    private async Task EditChannel(Message callbackQueryMessage, long channelId, CancellationToken cancellationToken)
+    {
+        var channel = await _telegramRepository.GetChannel(channelId, cancellationToken);
+        if (channel is null)
+        {
+            await _botClient.SendTextMessageAsync(
+                callbackQueryMessage.Chat.Id,
+                "Канал не найден",
+                cancellationToken: cancellationToken);
+            return;
+        }
+        
+        var buttons = new[]
+        {
+            new[] {new InlineKeyboardButton("Добавить фразы для поиска") { CallbackData = $"/add_phrases_to_{channelId}"}},
+            new[] {new InlineKeyboardButton("Удалить фразы для поиска") { CallbackData = $"/remove_phrases_from_{channelId}"}},
+            new[] {new InlineKeyboardButton("Отписаться") { CallbackData = $"/unsubscribe_from_{channelId}"}},
+            new[] {new InlineKeyboardButton("Перейти в канал") { Url = ChannelLink(channel.Name) }},
+            new[] {new InlineKeyboardButton("Назад") { CallbackData = "/my_channels" }},
+        };
+        
+        var keyboard = new InlineKeyboardMarkup(buttons);
+        
+        await  _botClient.SendTextMessageAsync(
+                callbackQueryMessage.Chat.Id,
+            $"Настройка канала @{channel.Name}",
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+    }
+
+    private async Task Subscribe(Message callbackQueryMessage, CancellationToken cancellationToken)
+    {
+        
+        // var button = KeyboardButton.WithRequestChat("Выбрать канал", new KeyboardButtonRequestChat
+        // {
+        //     ChatIsChannel = true,
+        //     RequestId = 108,
+        // });
+        //
+        // var keyboard = new ReplyKeyboardMarkup(button);
+        //
+        
+        await _botClient.SendTextMessageAsync(
+            callbackQueryMessage.Chat.Id,
+            "Введите короткие имя (начинается с @) или ссылку на канал, чтобы подписаться на него", 
+            cancellationToken: cancellationToken);
+        
+        _chatContextManager.OnAddingChannel(callbackQueryMessage.Chat.Id);
     }
 
     #region Inline Mode
@@ -498,4 +808,14 @@ public class UpdateHandler : IUpdateHandler
         if (exception is RequestException)
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
     }
+
+    private Pager GetDefaultChannelsPager(int currentPage)
+    {
+        return new Pager(currentPage, 5); 
+    } 
+    
+    private Pager GetDefaultPhrasesPager(int currentPage)
+    {
+        return new Pager(currentPage, 8); 
+    } 
 }

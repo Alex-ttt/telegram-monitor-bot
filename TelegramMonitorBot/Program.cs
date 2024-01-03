@@ -1,8 +1,11 @@
 ﻿using TelegramMonitorBot.AmazonSecretsManagerClient;
+using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
+using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient;
+using Channel = TelegramMonitorBot.TelegramApiClient.Models.Channel;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,15 +38,9 @@ builder.Services
 
 var app = builder.Build();
 
-//
-// var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramApiClient>();
-// await client.DoStuff();
-
-// var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramRepository>();
-// var channels1 = await client.GetChannels(3);
-// var channels2 = await client.GetChannels(3);
 
 await app.MigrateStorage();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -52,5 +49,15 @@ app.MapGet("/api/hello", () => "Hello, World!");
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+
+//
+var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramApiClient>();
+// var c1 = await client.FindChannelByName("igrapoisk");
+// var c2 = await client.GetChannel(-1001498653424);
+// //
+// var client = app.Services.CreateScope().ServiceProvider.GetRequiredService<ITelegramRepository>();
+
+// var channels1 = await client.GetChannels(3, new Pager());
+// var channels2 = await client.GetChannels(3);
 
 app.Run();
