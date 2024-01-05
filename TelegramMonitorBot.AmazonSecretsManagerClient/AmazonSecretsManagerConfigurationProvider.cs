@@ -1,18 +1,13 @@
-﻿using Amazon.SecretsManager.Model;
+﻿using Amazon.SecretsManager;
+using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
 
 namespace TelegramMonitorBot.AmazonSecretsManagerClient;
 
-public class AmazonSecretsManagerConfigurationProvider : ConfigurationProvider
+public class AmazonSecretsManagerConfigurationProvider(IAmazonSecretsManager secretClientManager)
+    : ConfigurationProvider
 {
-    private readonly Amazon.SecretsManager.AmazonSecretsManagerClient _secretClientManager;
-    
     private static readonly HashSet<string> NotMappedConfig = new() {"TemporaryData"};
-    
-    public AmazonSecretsManagerConfigurationProvider(Amazon.SecretsManager.AmazonSecretsManagerClient secretClientManager)
-    {
-        _secretClientManager = secretClientManager;
-    }
 
     public override void Load()
     {
@@ -23,12 +18,12 @@ public class AmazonSecretsManagerConfigurationProvider : ConfigurationProvider
     private async Task<IDictionary<string, string?>> GetSecrets()
     {
         var listSecretsRequest = new ListSecretsRequest();
-        var listSecretsResponse = await _secretClientManager.ListSecretsAsync(listSecretsRequest);
+        var listSecretsResponse = await secretClientManager.ListSecretsAsync(listSecretsRequest);
         var result = new Dictionary<string, string>(listSecretsResponse.SecretList.Count);
 
         foreach (var secretEntry in listSecretsResponse.SecretList.Where(t => NotMappedConfig.Contains(t.Name) is false))
         {
-            var secret = await _secretClientManager.GetSecretValueAsync(new GetSecretValueRequest {SecretId = secretEntry.ARN});
+            var secret = await secretClientManager.GetSecretValueAsync(new GetSecretValueRequest {SecretId = secretEntry.ARN});
             var secretString = ReadSecret(secret);
             
             result.Add(secretEntry.Name, secretString);

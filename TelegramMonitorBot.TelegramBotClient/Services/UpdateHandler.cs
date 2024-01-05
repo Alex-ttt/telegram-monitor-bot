@@ -77,7 +77,7 @@ public class UpdateHandler : IUpdateHandler
 
     private async Task BotOnMessageReceived(Message message, CancellationToken cancellationToken)
     {
-        var response = await _mediator.Send(new GetMyChannelsRequest());
+        var response = await _mediator.Send(new GetMyChannelsRequest(null!));
         _logger.LogInformation("Receive message type: {MessageType}", message.Type);
         if (message.Text is not { } messageText)
         {
