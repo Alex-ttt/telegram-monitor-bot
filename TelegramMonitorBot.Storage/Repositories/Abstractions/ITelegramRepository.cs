@@ -12,4 +12,6 @@ public interface ITelegramRepository
     Task<Channel?> GetChannel(long channelId, CancellationToken cancellationToken = default);
     Task AddPhrases(ChannelUser channelUser, CancellationToken cancellationToken);
     Task<ICollection<string>> GetChannelUserPhrases(long channelId, long userId, CancellationToken cancellationToken);
+    Task RemovePhrase(long channelId, long userId, string phrase, CancellationToken cancellationToken);
+    Task RemoveChannelUser(long channelId, long userId, CancellationToken cancellationToken);
 }

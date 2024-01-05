@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
             .AddTypedClient<ITelegramBotClient>((httpClient, _) => new Telegram.Bot.TelegramBotClient( new TelegramBotClientOptions(token), httpClient));
         
         services
+            .AddMediatR(config => config.RegisterServicesFromAssembly(typeof(ServiceCollectionExtensions).Assembly))
             .AddScoped<UpdateHandler>()
             .AddScoped<ReceiverService>()
             .AddSingleton<ChatContextManager>()

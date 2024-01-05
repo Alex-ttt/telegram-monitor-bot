@@ -180,6 +180,36 @@ internal class TelegramRepository : ITelegramRepository
         return result;
     }
 
+    public async Task RemovePhrase(long channelId, long userId, string phrase, CancellationToken cancellationToken)
+    {
+        var channelUser = await GetChannelUser(channelId, userId, cancellationToken);
+        if (channelUser is null)
+        {
+            return;
+        }
+        
+        channelUser.RemovePhrase(phrase);
+        await PutItem(channelUser.ToDictionary(), cancellationToken);
+    }
+
+    public async Task RemoveChannelUser(long channelId, long userId, CancellationToken cancellationToken)
+    {
+        var deleteItemRequest = new DeleteItemRequest
+        {
+            TableName = DynamoDbConfig.TableName,
+            Key =
+            {
+                [DynamoDbConfig.PartitionKeyName] =
+                    new AttributeValue {S = ModelsMapper.ChannelIdToKeyValue(channelId)},
+                [DynamoDbConfig.SortKeyName] = new AttributeValue {S = ModelsMapper.UserIdToKeyValue(userId)},
+            }
+        };
+        
+        _memoryCache.ResetUserChannels(userId);
+        _memoryCache.ResetChannelUserPhrases(channelId, userId);
+        await _dynamoDbClient.DeleteItemAsync(deleteItemRequest, cancellationToken);
+    }
+
     private async Task<ChannelUser?> GetChannelUser(long channelId, long userId, CancellationToken cancellationToken)
     {
         var getChannelUserRequest = new GetItemRequest
@@ -238,15 +268,6 @@ internal class TelegramRepository : ITelegramRepository
             return new PageResult<TItem>(items, 1, 1);
         }
         
-        var pageItems = items
-            .Skip((pager.Page - 1) * pager.PageSize)
-            .Take(pager.PageSize);
-        
-        var pagesCount = 
-            items.Count / pager.PageSize 
-            + (items.Count / pager.PageSize > 0 ? 1 : 0);
-        
-
-        return new PageResult<TItem>(pageItems, pager.Page, pagesCount);
+        return new PageResult<TItem>(items, pager);
     }
 }

@@ -35,4 +35,9 @@ public class ChannelUser
     {
         Phrases?.RemoveAll(phrases.Contains);
     }
+    
+    public void RemovePhrase(string phrase)
+    {
+        Phrases?.Remove(phrase);
+    }
 }

@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="MediatR" Version="12.2.0" />
         <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
         <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
@@ -18,6 +19,10 @@
       <ProjectReference Include="..\TelegramMonitorBot.Configuration\TelegramMonitorBot.Configuration.csproj" />
       <ProjectReference Include="..\TelegramMonitorBot.Storage\TelegramMonitorBot.Storage.csproj" />
       <ProjectReference Include="..\TelegramMonitorBot.TelegramApiClient\TelegramMonitorBot.TelegramApiClient.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Application\Commands\" />
     </ItemGroup>
 
 </Project>

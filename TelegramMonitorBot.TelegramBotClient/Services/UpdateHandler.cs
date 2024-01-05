@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -11,6 +12,7 @@ using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramApiClient;
+using TelegramMonitorBot.TelegramBotClient.Application.Queries.MyChannels;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 
 // ReSharper disable All
@@ -24,40 +26,43 @@ public class UpdateHandler : IUpdateHandler
     private readonly ChatContextManager _chatContextManager;
     private readonly ITelegramRepository _telegramRepository;
     private readonly ITelegramApiClient _telegramApiClient;
+    private readonly IMediator _mediator;
     
-    private const string ChannelPagePlaceholder = "number";
-    private static Regex ChannelPageRegex = new Regex(@$"^\/my_channels_(?<{ChannelPagePlaceholder}>-?\d+)$", RegexOptions.Compiled);
+    private const string ChannelPagePlaceholder = "page";
+    private static Regex ChannelPageRegex = new (@$"^\/my_channels(?<{ChannelPagePlaceholder}>_?\d+)?$", RegexOptions.Compiled);
     
-    private const string EditChannelIdPlaceholder = "number";
-    private static Regex EditChannelIdRegex = new Regex(@$"^\/edit_channel_(?<{EditChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
+    private const string EditChannelIdPlaceholder = "channelId";
+    private static Regex EditChannelIdRegex = new (@$"^\/edit_channel_(?<{EditChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
 
-    private const string AddPhrasesChannelIdPlaceholder = "number";
-    private static Regex AddPhrasesChannelIdRegex = new Regex(@$"^\/add_phrases_to_(?<{AddPhrasesChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
+    private const string AddPhrasesChannelIdPlaceholder = "channelId";
+    private static Regex AddPhrasesChannelIdRegex = new (@$"^\/add_phrases_to_(?<{AddPhrasesChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
     
-    private const string RemovePhrasesChannelIdPlaceholder = "number";
+    private const string RemovePhrasesChannelIdPlaceholder = "channelId";
     private const string RemovePhrasesPagePlaceholder = "page";
-    private static Regex  RemovePhrasesChannelIdRegex = new Regex(@$"^\/remove_phrases_from_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
+    private static Regex  RemovePhrasesChannelIdRegex = new (@$"^\/remove_phrases_from_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
+
+    private const string RemovePrecisePhraseChannelIdPlaceholder = "channelId";
+    private const string RemovePrecisePhrasePlaceholder = "phrase";
+    private static Regex RemovePrecisePhraseRegex =
+        new (@$"^\/remove_phrase_(?<{RemovePrecisePhraseChannelIdPlaceholder}>-?\d+)_(?<{RemovePrecisePhrasePlaceholder}>.+)$", RegexOptions.Compiled);
+
+    private const string UnsubscribeChannelIdPlaceholder = "channelId";
+    private static Regex UnsubscribeChannelIdRegex = new (@$"^\/unsubscribe_from_(?<{UnsubscribeChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
     
     public UpdateHandler(
         ITelegramBotClient botClient, 
         ILogger<UpdateHandler> logger, 
-        ChatContextManager chatContextManager, ITelegramRepository telegramRepository, ITelegramApiClient telegramApiClient)
+        ChatContextManager chatContextManager, ITelegramRepository telegramRepository, ITelegramApiClient telegramApiClient, IMediator mediator)
     {
+        _mediator = mediator;
         (_botClient, _chatContextManager, _telegramRepository, _telegramApiClient, _logger) = 
             (botClient, chatContextManager, telegramRepository, telegramApiClient, logger);
     }
     
-
     public async Task HandleUpdateAsync(ITelegramBotClient telegramBotClient, Update update, CancellationToken cancellationToken)
     {
         var handler = update switch
         {
-            {Type: UpdateType.Message, Message: { } message} => BotOnMessageReceived(message, cancellationToken),
-            // UpdateType.Unknown:
-            // UpdateType.EditedChannelPost:
-            // UpdateType.ShippingQuery:
-            // UpdateType.PreCheckoutQuery:
-            // UpdateType.Poll:
             { Message: { } message} => BotOnMessageReceived(message, cancellationToken),
             { EditedMessage: { } message} => BotOnMessageReceived(message, cancellationToken),
             { CallbackQuery: { } callbackQuery} => BotOnCallbackQueryReceived(callbackQuery, cancellationToken),
@@ -72,6 +77,7 @@ public class UpdateHandler : IUpdateHandler
 
     private async Task BotOnMessageReceived(Message message, CancellationToken cancellationToken)
     {
+        var response = await _mediator.Send(new GetMyChannelsRequest());
         _logger.LogInformation("Receive message type: {MessageType}", message.Type);
         if (message.Text is not { } messageText)
         {
@@ -95,7 +101,7 @@ public class UpdateHandler : IUpdateHandler
         var action = firstWord switch
         {
             "/about"     => SendAbout(message, cancellationToken),
-            "/channels"     => Channels(message, cancellationToken),
+            "/menu"     => MainMenu(message, cancellationToken),
             "/my_channels"     => MyChannels(message, null, cancellationToken),
             
             // "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
@@ -108,74 +114,43 @@ public class UpdateHandler : IUpdateHandler
             _                  => Usage(_botClient, message, cancellationToken)
         };
         
-        
-        // var action = messageText.Split(' ')[0] switch
-        // {
-        //     "/about"     => SendAbout(message, cancellationToken),
-        //     "/add_channel"     => AddChannel(_botClient, message, cancellationToken),
-        //     "/channels"     => MyChannels(_botClient, message, cancellationToken),
-        //     "/keyboard"        => SendReplyKeyboard(_botClient, message, cancellationToken),
-        //     "/remove"          => RemoveKeyboard(_botClient, message, cancellationToken),
-        //     "/photo"           => SendFile(_botClient, message, cancellationToken),
-        //     "/request"         => RequestContactAndLocation(_botClient, message, cancellationToken),
-        //     "/inline_mode"     => StartInlineQuery(_botClient, message, cancellationToken),
-        //     "/throw"           => FailingHandler(_botClient, message, cancellationToken),
-        //     _                  => AddUserChannel(message, cancellationToken)
-        // };
-
-
         Message sentMessage = await action;
         _logger.LogInformation("The message was sent with id: {SentMessageId}", sentMessage.MessageId);
-
-        // static async Task<Message> SendSomething(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-        // {
-        //     await botClient.SendChatActionAsync(
-        //         chatId: message.Chat.Id,
-        //         chatAction: ChatAction.Typing,
-        //         cancellationToken: cancellationToken);
-        //     
-        //     
-        // }
 
         async Task<Message> AddUserChannel(Message message, CancellationToken cancellationToken)
         {
             var context = _chatContextManager.GetCurrentContext(message.Chat.Id);
-            if (context.CurrentState == ChatState.WaitingForChannelToSubscribe || Math.E > 0)
+            var channel = await _telegramApiClient.FindChannelByName(message.Text!); // TODO think about null text
+            if (channel is null)
             {
-                var channel = await _telegramApiClient.FindChannelByName(message.Text!); // TODO think about null text
-                if (channel is null)
-                {
-                    return await _botClient.SendTextMessageAsync(
-                        message.Chat.Id, 
-                        $"Не удалось найти канал {message.Text}", 
-                        cancellationToken: cancellationToken);
-                }
-
-                var alreadySubscribed = await _telegramRepository.CheckChannelWithUser(channel.Id, message.Chat.Id);
-                if (alreadySubscribed)
-                {
-                    return await _botClient.SendTextMessageAsync(
-                        message.Chat.Id, 
-                        $"Подписка на данный канал уже существует", 
-                        cancellationToken: cancellationToken);
-                }
-
-                var user = new Domain.Models.User(message.Chat.Id, message.From!.Username ?? "_unknown_");
-                
-                await _telegramRepository.PutUserChannel(
-                    new (message.From.Id, message.From.Username ?? "_unknown_"),
-                    new (channel.Id, channel.Name),
-                    cancellationToken);
-                
-                _chatContextManager.OnAddedChannel(message.Chat.Id);
-                
                 return await _botClient.SendTextMessageAsync(
-                    message.Chat.Id, 
-                    $"Канал @{channel.Name} добавлен", 
+                    message.Chat.Id,
+                    $"Не удалось найти канал {message.Text}",
                     cancellationToken: cancellationToken);
             }
-            
-            return await Usage(_botClient, message, cancellationToken);
+
+            var alreadySubscribed = await _telegramRepository.CheckChannelWithUser(channel.Id, message.Chat.Id, cancellationToken);
+            if (alreadySubscribed)
+            {
+                return await _botClient.SendTextMessageAsync(
+                    message.Chat.Id,
+                    $"Подписка на данный канал уже существует",
+                    cancellationToken: cancellationToken);
+            }
+
+            var user = new Domain.Models.User(message.Chat.Id, message.Chat.Username ?? "_unknown_");
+
+            await _telegramRepository.PutUserChannel(
+                new(message.Chat.Id, message.Chat.Username ?? "_unknown_"),
+                new(channel.Id, channel.Name),
+                cancellationToken);
+
+            _chatContextManager.OnAddedChannel(message.Chat.Id);
+
+            return await _botClient.SendTextMessageAsync(
+                message.Chat.Id,
+                $"Канал @{channel.Name} добавлен",
+                cancellationToken: cancellationToken);
         }
         
         async Task<Message> TextMessage(Message message, CancellationToken cancellationToken)
@@ -427,7 +402,7 @@ public class UpdateHandler : IUpdateHandler
             return;
         }
 
-        var userId = message.From!.Id;
+        var userId = message.Chat.Id;
         var channelUser = new ChannelUser(channel!.ChannelId, userId, phrases);
         await _telegramRepository.AddPhrases(channelUser, cancellationToken);
 
@@ -440,22 +415,14 @@ public class UpdateHandler : IUpdateHandler
         
         await _botClient.SendTextMessageAsync(
             message.Chat.Id,
-            "Фазы успешно добавлены",
+            "Фразы успешно добавлены",
             replyMarkup: keyboard);
         
         _chatContextManager.OnPhrasesAdded(userId, channelId);
     }
 
-    private async Task<Message> Channels(Message message, CancellationToken cancellationToken)
+    private async Task<Message> MainMenu(Message message, CancellationToken cancellationToken)
     {
-        // var subscribe = KeyboardButton.WithRequestChat(
-        //     "Подписаться",
-        //     new KeyboardButtonRequestChat()
-        //     {
-        //         ChatIsChannel = true,
-        //
-        //     });
-        
         
         var inlineKeyboard = new InlineKeyboardMarkup(new[]
         {
@@ -540,14 +507,13 @@ public class UpdateHandler : IUpdateHandler
     {
         _logger.LogInformation("Received inline keyboard callback from: {CallbackQueryId}", callbackQuery.Id);
         
-        if (callbackQuery.Data!.StartsWith("/my_channels"))
+        var channelPageMatch = ChannelPageRegex.Match(callbackQuery.Data);
+        if (channelPageMatch.Success)
         {
             Pager? pager = null;
-            var channelPageMatch = ChannelPageRegex.Match(callbackQuery.Data);
-            if (channelPageMatch.Success)
+            if (channelPageMatch.Groups[ChannelPagePlaceholder] is { Success: true} page)
             {
-                string extractedNumber = channelPageMatch.Groups[ChannelPagePlaceholder].Value;
-                pager = GetDefaultChannelsPager(int.Parse(extractedNumber));
+                pager = GetDefaultChannelsPager(int.Parse(page.Value));
             }
             
             await MyChannels(callbackQuery.Message!, pager, cancellationToken);
@@ -589,6 +555,26 @@ public class UpdateHandler : IUpdateHandler
             return;
         }
 
+
+        var removePrecisePhraseMatch = RemovePrecisePhraseRegex.Match(callbackQuery.Data);
+        if (removePrecisePhraseMatch.Success)
+        {
+            var channelIdString = removePrecisePhraseMatch.Groups[RemovePrecisePhraseChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            var phrase = removePrecisePhraseMatch.Groups[RemovePrecisePhrasePlaceholder].Value;
+            await RemovePrecisePhrase(callbackQuery, channelId, phrase, cancellationToken);
+            return;
+        }
+        
+        var unsubscribeFromChannelMatch = UnsubscribeChannelIdRegex.Match(callbackQuery.Data);
+        if (unsubscribeFromChannelMatch.Success)
+        {
+            var channelIdString = unsubscribeFromChannelMatch.Groups[UnsubscribeChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            await Unsubscribe(callbackQuery, channelId, cancellationToken);
+            return;
+        }
+        
         if (callbackQuery.Data == "/subscribe")
         {
             await Subscribe(callbackQuery.Message!, cancellationToken);
@@ -606,9 +592,28 @@ public class UpdateHandler : IUpdateHandler
             cancellationToken: cancellationToken);
     }
 
+    private async Task Unsubscribe(CallbackQuery callbackQuery, long channelId, CancellationToken cancellationToken)
+    {
+        var message = callbackQuery.Message!;
+        await _telegramRepository.RemoveChannelUser(channelId, message.Chat.Id, cancellationToken);
+        
+        await _botClient.AnswerCallbackQueryAsync(callbackQuery.Id, $"Вы успешно отписались от канала", cancellationToken: cancellationToken);
+        await MyChannels(message, null, cancellationToken);
+    }
+
+    private async Task RemovePrecisePhrase(CallbackQuery callbackQuery, long channelId, string phrase, CancellationToken cancellationToken)
+    {
+        await _telegramRepository.RemovePhrase(channelId, callbackQuery.Message!.Chat.Id, phrase, cancellationToken);
+        await _botClient.AnswerCallbackQueryAsync(callbackQuery.Id, $"Фраза \"{phrase}\" удалена", cancellationToken: cancellationToken);
+        await Task.Delay(500, cancellationToken);
+        await _botClient.SendChatActionAsync(callbackQuery.Message!.Chat.Id, ChatAction.Typing, cancellationToken: cancellationToken);
+        
+        await ShowChannelPhrases(callbackQuery.Message, channelId, 1, cancellationToken);
+    }
+
     private async Task ShowChannelPhrases(Message callbackQueryMessage, long channelId, int page, CancellationToken cancellationToken)
     {
-        var phrases = await _telegramRepository.GetChannelUserPhrases(channelId, callbackQueryMessage.From!.Id, cancellationToken);
+        var phrases = await _telegramRepository.GetChannelUserPhrases(channelId, callbackQueryMessage.Chat.Id, cancellationToken);
         if (phrases.Count is 0)
         {
             var keyboard = new InlineKeyboardMarkup(
@@ -644,7 +649,7 @@ public class UpdateHandler : IUpdateHandler
         var phrasesKeyboardButtons = pageResult
             .Select(t => new List<InlineKeyboardButton>
             {
-                new InlineKeyboardButton(t), 
+                InlineKeyboardButton.WithCallbackData(t, "phrase_ignore"), 
                 InlineKeyboardButton.WithCallbackData("Удалить", $"/remove_phrase_{channelId}_{t}")
             })
             .ToList();
