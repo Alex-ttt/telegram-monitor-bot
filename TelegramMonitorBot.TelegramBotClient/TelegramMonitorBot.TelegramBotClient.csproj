@@ -21,8 +21,4 @@
       <ProjectReference Include="..\TelegramMonitorBot.TelegramApiClient\TelegramMonitorBot.TelegramApiClient.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Application\Commands\" />
-    </ItemGroup>
-
 </Project>

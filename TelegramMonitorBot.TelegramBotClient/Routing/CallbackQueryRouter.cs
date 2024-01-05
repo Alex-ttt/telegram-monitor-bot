@@ -1,11 +1,11 @@
 ﻿using System.Text.RegularExpressions;
 using MediatR;
-using Telegram.Bot;
 using Telegram.Bot.Types;
+using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
 
-namespace TelegramMonitorBot.TelegramBotClient.Services;
+namespace TelegramMonitorBot.TelegramBotClient.Routing;
 
-public class CallbackQueryHandler
+public class CallbackQueryRouter
 {
     private const string ChannelPagePlaceholder = "page";
     private static readonly Regex ChannelPageRegex = new (@$"^\/my_channels(?<{ChannelPagePlaceholder}>_?\d+)?$", RegexOptions.Compiled);
@@ -28,14 +28,14 @@ public class CallbackQueryHandler
     private const string UnsubscribeChannelIdPlaceholder = "channelId";
     private static readonly Regex UnsubscribeChannelIdRegex = new (@$"^\/unsubscribe_from_(?<{UnsubscribeChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
 
-    
-    public static async Task Handle(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken)
+    // TODO Not static 
+    public static IRequest? RouteRequest(CallbackQuery callbackQuery)
     {
         var callbackData = callbackQuery.Data;
         if (callbackData is null)
         {
             // TODO Do something
-            return;    
+            return null;
         }
         
         var channelPageMatch = ChannelPageRegex.Match(callbackData);
@@ -44,11 +44,11 @@ public class CallbackQueryHandler
             int? page = null;
             if (channelPageMatch.Groups[ChannelPagePlaceholder] is { Success: true} pageGroup)
             {
-                page = (int.Parse(pageGroup.Value));
+                page = int.Parse(pageGroup.Value);
             }
-            
-            // await MyChannels(callbackQuery.Message!, pager, cancellationToken);
-            return;
+
+            var myChannelsRequest =new GetChannelsRequest(callbackQuery, page);
+            return myChannelsRequest;
         }
 
         var editChannelMatch = EditChannelIdRegex.Match(callbackData);
@@ -57,7 +57,7 @@ public class CallbackQueryHandler
             var channelIdString = editChannelMatch.Groups[EditChannelIdPlaceholder].Value;
             var channelId = long.Parse(channelIdString);
             // await EditChannel(callbackQuery.Message!, channelId, cancellationToken);
-            return;
+            return null;
         }
         
         var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackData);
@@ -66,7 +66,7 @@ public class CallbackQueryHandler
             var channelIdString = addPhrasesMatch.Groups[AddPhrasesChannelIdPlaceholder].Value;
             var channelId = long.Parse(channelIdString);
             // await PrepareForAddingPhrases(callbackQuery.Message!, channelId, cancellationToken);
-            return;
+            return null;
         }
         
         var removePhrasesMatch = RemovePhrasesChannelIdRegex.Match(callbackData);
@@ -81,7 +81,7 @@ public class CallbackQueryHandler
             }
             
             // await ShowChannelPhrases(callbackQuery.Message!, channelId, page, cancellationToken);
-            return;
+            return null;
         }
 
         var removePrecisePhraseMatch = RemovePrecisePhraseRegex.Match(callbackData);
@@ -91,7 +91,7 @@ public class CallbackQueryHandler
             var channelId = long.Parse(channelIdString);
             var phrase = removePrecisePhraseMatch.Groups[RemovePrecisePhrasePlaceholder].Value;
             // await RemovePrecisePhrase(callbackQuery, channelId, phrase, cancellationToken);
-            return;
+            return null;
         }
         
         var unsubscribeFromChannelMatch = UnsubscribeChannelIdRegex.Match(callbackData);
@@ -100,13 +100,15 @@ public class CallbackQueryHandler
             var channelIdString = unsubscribeFromChannelMatch.Groups[UnsubscribeChannelIdPlaceholder].Value;
             var channelId = long.Parse(channelIdString);
             // await Unsubscribe(callbackQuery, channelId, cancellationToken);
-            return;
+            return null;
         }
         
         if (callbackQuery.Data == "/subscribe")
         {
             // await Subscribe(callbackQuery.Message!, cancellationToken);
-            return;
+            return null;
         }
+
+        return null;
     }
 }

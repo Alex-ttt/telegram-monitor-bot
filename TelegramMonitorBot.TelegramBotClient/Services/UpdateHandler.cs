@@ -12,8 +12,9 @@ using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramApiClient;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.MyChannels;
+using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
+using TelegramMonitorBot.TelegramBotClient.Routing;
 
 // ReSharper disable All
 
@@ -506,6 +507,12 @@ public class UpdateHandler : IUpdateHandler
     private async Task BotOnCallbackQueryReceived(CallbackQuery callbackQuery, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Received inline keyboard callback from: {CallbackQueryId}", callbackQuery.Id);
+
+        if (CallbackQueryRouter.RouteRequest(callbackQuery) is { } request)
+        {
+            await _mediator.Send(request, cancellationToken);
+            return;
+        }
         
         var channelPageMatch = ChannelPageRegex.Match(callbackQuery.Data);
         if (channelPageMatch.Success)
@@ -515,8 +522,9 @@ public class UpdateHandler : IUpdateHandler
             {
                 pager = GetDefaultChannelsPager(int.Parse(page.Value));
             }
-            
-            await MyChannels(callbackQuery.Message!, pager, cancellationToken);
+
+            await _mediator.Send(new GetChannelsRequest(callbackQuery, pager?.Page));
+            // await MyChannels(callbackQuery.Message!, pager, cancellationToken);
             return;
         }
 

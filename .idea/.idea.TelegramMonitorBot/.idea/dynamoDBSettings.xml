@@ -15,7 +15,7 @@
         <entry key="73df680b-6de8-4f60-8fb9-1c013ba42ffc">
           <value>
             <DatabaseConfigInternal>
-              <option name="connectionType" value="Local DynamoDB" />
+              <option name="connectionType" value="Custom endpoint" />
               <option name="credentialsType" value="Explicit access key and secret key" />
               <option name="customEndpoint" value="http://localhost:8000" />
               <option name="id" value="73df680b-6de8-4f60-8fb9-1c013ba42ffc" />
