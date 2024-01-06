@@ -3,7 +3,7 @@ using Telegram.Bot;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 
-namespace TelegramMonitorBot.TelegramBotClient.Application.Commands;
+namespace TelegramMonitorBot.TelegramBotClient.Application.Commands.PrepareChannelForPhrasesAdding;
 
 public class PrepareChannelForPhrasesAddingRequestHandler : IRequestHandler<PrepareChannelForPhrasesAddingRequest>
 {

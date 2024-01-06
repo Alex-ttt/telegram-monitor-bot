@@ -1,7 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using MediatR;
 using Telegram.Bot.Types;
+using TelegramMonitorBot.TelegramBotClient.Application.Commands.PrepareChannelForPhrasesAdding;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMenu;
+using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannelPhrases;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
 
 namespace TelegramMonitorBot.TelegramBotClient.Routing;
@@ -19,7 +21,7 @@ public class CallbackQueryRouter
     
     private const string RemovePhrasesChannelIdPlaceholder = "channelId";
     private const string RemovePhrasesPagePlaceholder = "page";
-    private static readonly Regex  RemovePhrasesChannelIdRegex = new (@$"^\/remove_phrases_from_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
+    private static readonly Regex RemovePhrasesChannelIdRegex = new (@$"^\/remove_phrases_from_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
 
     private const string RemovePrecisePhraseChannelIdPlaceholder = "channelId";
     private const string RemovePrecisePhrasePlaceholder = "phrase";
@@ -44,12 +46,21 @@ public class CallbackQueryRouter
             return channelPageRequest;
         }
 
-        if (TryRouteEditChannelPage(callbackQuery) is {}  editChannelPageRequest)
+        if (TryRouteEditChannelPage(callbackQuery) is { } editChannelPageRequest)
         {
             return editChannelPageRequest;
         }
-        
 
+        if (TryRoutePrepareChannelForPhraseAdding(callbackQuery) is { } prepareChannelForPhraseAddingRequest)
+        {
+            return prepareChannelForPhraseAddingRequest;
+        }
+
+        if (TryRouteRemovePhrasesFromChannel(callbackQuery) is { } removePhrasesFromChannelRequest)
+        {
+            return removePhrasesFromChannelRequest;
+        }
+        
         var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackData);
         if (addPhrasesMatch.Success)
         {
@@ -131,6 +142,39 @@ public class CallbackQueryRouter
 
             var myChannelsRequest = new GetChannelsRequest(callbackQuery, page);
             return myChannelsRequest;
+        }
+
+        return null;
+    }
+
+    private static PrepareChannelForPhrasesAddingRequest? TryRoutePrepareChannelForPhraseAdding(CallbackQuery callbackQuery)
+    {
+        var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackQuery.Data!);
+        if (addPhrasesMatch.Success)
+        {
+            var channelIdString = addPhrasesMatch.Groups[AddPhrasesChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+
+            return new PrepareChannelForPhrasesAddingRequest(callbackQuery, channelId);
+        }
+        
+        return null;
+    }
+
+    private static GetChannelPhrasesRequest? TryRouteRemovePhrasesFromChannel(CallbackQuery callbackQuery)
+    {
+        var removePhrasesMatch = RemovePhrasesChannelIdRegex.Match(callbackQuery.Data!);
+        if(removePhrasesMatch.Success)
+        {
+            var channelIdString = removePhrasesMatch.Groups[RemovePhrasesChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            var removeChannelPage = 1;
+            if (removePhrasesMatch.Groups[RemovePhrasesPagePlaceholder] is {Success: true} pageGroup)
+            {
+                removeChannelPage = int.Parse(pageGroup.Value);
+            }
+            
+            return new GetChannelPhrasesRequest(callbackQuery, channelId, removeChannelPage);
         }
 
         return null;
