@@ -514,29 +514,6 @@ public class UpdateHandler : IUpdateHandler
             return;
         }
         
-        var channelPageMatch = ChannelPageRegex.Match(callbackQuery.Data);
-        if (channelPageMatch.Success)
-        {
-            Pager? pager = null;
-            if (channelPageMatch.Groups[ChannelPagePlaceholder] is { Success: true} page)
-            {
-                pager = GetDefaultChannelsPager(int.Parse(page.Value));
-            }
-
-            await _mediator.Send(new GetChannelsRequest(callbackQuery, pager?.Page));
-            // await MyChannels(callbackQuery.Message!, pager, cancellationToken);
-            return;
-        }
-
-        var editChannelMatch = EditChannelIdRegex.Match(callbackQuery.Data);
-        if (editChannelMatch.Success)
-        {
-            var channelIdString = editChannelMatch.Groups[EditChannelIdPlaceholder].Value;
-            var channelId = long.Parse(channelIdString);
-            await EditChannel(callbackQuery.Message!, channelId, cancellationToken);
-            return;
-        }
-        
         var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackQuery.Data);
         if (addPhrasesMatch.Success)
         {
@@ -715,36 +692,6 @@ public class UpdateHandler : IUpdateHandler
 
         // TODO handle context states
 
-    }
-
-    private async Task EditChannel(Message callbackQueryMessage, long channelId, CancellationToken cancellationToken)
-    {
-        var channel = await _telegramRepository.GetChannel(channelId, cancellationToken);
-        if (channel is null)
-        {
-            await _botClient.SendTextMessageAsync(
-                callbackQueryMessage.Chat.Id,
-                "Канал не найден",
-                cancellationToken: cancellationToken);
-            return;
-        }
-        
-        var buttons = new[]
-        {
-            new[] {new InlineKeyboardButton("Добавить фразы для поиска") { CallbackData = $"/add_phrases_to_{channelId}"}},
-            new[] {new InlineKeyboardButton("Удалить фразы для поиска") { CallbackData = $"/remove_phrases_from_{channelId}"}},
-            new[] {new InlineKeyboardButton("Отписаться") { CallbackData = $"/unsubscribe_from_{channelId}"}},
-            new[] {new InlineKeyboardButton("Перейти в канал") { Url = ChannelLink(channel.Name) }},
-            new[] {new InlineKeyboardButton("Назад") { CallbackData = "/my_channels" }},
-        };
-        
-        var keyboard = new InlineKeyboardMarkup(buttons);
-        
-        await  _botClient.SendTextMessageAsync(
-                callbackQueryMessage.Chat.Id,
-            $"Настройка канала @{channel.Name}",
-                replyMarkup: keyboard,
-                cancellationToken: cancellationToken);
     }
 
     private async Task Subscribe(Message callbackQueryMessage, CancellationToken cancellationToken)

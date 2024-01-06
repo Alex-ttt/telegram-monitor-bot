@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using MediatR;
 using Telegram.Bot.Types;
+using TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMenu;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
 
 namespace TelegramMonitorBot.TelegramBotClient.Routing;
@@ -29,7 +30,7 @@ public class CallbackQueryRouter
     private static readonly Regex UnsubscribeChannelIdRegex = new (@$"^\/unsubscribe_from_(?<{UnsubscribeChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
 
     // TODO Not static 
-    public static IRequest? RouteRequest(CallbackQuery callbackQuery)
+    public static IBaseRequest? RouteRequest(CallbackQuery callbackQuery)
     {
         var callbackData = callbackQuery.Data;
         if (callbackData is null)
@@ -47,7 +48,7 @@ public class CallbackQueryRouter
                 page = int.Parse(pageGroup.Value);
             }
 
-            var myChannelsRequest =new GetChannelsRequest(callbackQuery, page);
+            var myChannelsRequest = new GetChannelsRequest(callbackQuery, page);
             return myChannelsRequest;
         }
 
@@ -56,8 +57,9 @@ public class CallbackQueryRouter
         {
             var channelIdString = editChannelMatch.Groups[EditChannelIdPlaceholder].Value;
             var channelId = long.Parse(channelIdString);
-            // await EditChannel(callbackQuery.Message!, channelId, cancellationToken);
-            return null;
+            var editChannelMenuRequest = new EditChannelMenuRequest(callbackQuery, channelId);
+            
+            return editChannelMenuRequest;
         }
         
         var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackData);
