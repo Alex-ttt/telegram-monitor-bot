@@ -8,5 +8,6 @@ public enum UserAction
     AddSearchPhrase,
     RemoveSearchPhrase,
     CallAddPhrases,
-    PhrasesAdded
+    PhrasesAdded,
+    Navigation,
 }

@@ -19,11 +19,7 @@ public class BotNavigationManager
         var buttons = channels
             .Select(t => new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithUrl(t.Name, ChannelService.ChannelLink(t.Name)),
-                new InlineKeyboardButton("Настроить")
-                {
-                    CallbackData = $"/edit_channel_{t.ChannelId}",
-                },
+                InlineKeyboardButton.WithCallbackData( t.Name + "\t\ud83d\udee0", $"/edit_channel_{t.ChannelId}"),
             })
             .ToList();
 

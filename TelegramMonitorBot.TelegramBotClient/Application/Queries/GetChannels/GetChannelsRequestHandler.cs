@@ -4,6 +4,7 @@ using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramBotClient.Application.Services;
+using TelegramMonitorBot.TelegramBotClient.ChatContext;
 using TelegramMonitorBot.TelegramBotClient.Extensions;
 using TelegramMonitorBot.TelegramBotClient.Navigation;
 
@@ -14,15 +15,18 @@ public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
     private readonly ITelegramBotClient _botClient;
     private readonly ITelegramRepository _telegramRepository;
     private readonly BotNavigationManager _botNavigationManager;
+    private readonly ChatContextManager _chatContextManager;
 
     public GetChannelsRequestHandler(
         ITelegramBotClient botClient, 
         ITelegramRepository telegramRepository, 
-        BotNavigationManager botNavigationManager)
+        BotNavigationManager botNavigationManager,
+        ChatContextManager chatContextManager)
     {
         _botClient = botClient;
         _telegramRepository = telegramRepository;
         _botNavigationManager = botNavigationManager;
+        _chatContextManager = chatContextManager;
     }
 
     public async Task Handle(GetChannelsRequest request, CancellationToken cancellationToken)
@@ -36,6 +40,7 @@ public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
 
         var myChannelsRequest = _botNavigationManager.GetMyChannelsMessageRequest(message, channels);
         await _botClient.SendTextMessageRequestAsync(myChannelsRequest, cancellationToken);
+        _chatContextManager.OnMainMenu(request.CallbackQuery.Message!.Chat.Id);
     }
 
     private async Task<PageResult<Channel>> GetChannels(GetChannelsRequest request, CancellationToken cancellationToken)

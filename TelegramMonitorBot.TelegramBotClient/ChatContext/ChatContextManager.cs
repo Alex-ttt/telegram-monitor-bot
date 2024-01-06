@@ -33,6 +33,12 @@ public class ChatContextManager
         var userContext = GetChatContext(chatId);
         userContext.Move(ChatState.PhrasesAdded, UserAction.PhrasesAdded, channelId);
     }
+    
+    public void OnMainMenu(long chatId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.MainMenu, UserAction.Navigation);
+    }
 
     private ChatContext GetChatContext(long chatId)
     {

@@ -1,5 +1,6 @@
 ﻿using MediatR;
 using Telegram.Bot;
+using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 
@@ -32,9 +33,16 @@ public class PrepareChannelForPhrasesAddingRequestHandler : IRequestHandler<Prep
             return;
         }
 
+        var keyboardMarkup = new InlineKeyboardMarkup(
+            new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData("Назад к моим каналам", "/my_channels"), },
+            });
+        
         await _botClient.SendTextMessageAsync(
             chatId,
             $"Введите фразы для поиска по каналу @{channel.Name}. Можно написать несколько фраз - каждую с новой строки", 
+            replyMarkup: keyboardMarkup,
             cancellationToken: cancellationToken);
 
         _chatContextManager.OnPhrasesAdding(chatId, channel.ChannelId);
