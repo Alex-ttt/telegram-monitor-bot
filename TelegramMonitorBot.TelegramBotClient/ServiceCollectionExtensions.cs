@@ -3,6 +3,8 @@ using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using TelegramMonitorBot.Configuration.Options;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
+using TelegramMonitorBot.TelegramBotClient.Routing;
 using TelegramMonitorBot.TelegramBotClient.Services;
 
 namespace TelegramMonitorBot.TelegramBotClient;
@@ -26,6 +28,9 @@ public static class ServiceCollectionExtensions
             .AddScoped<UpdateHandler>()
             .AddScoped<ReceiverService>()
             .AddSingleton<ChatContextManager>()
+            .AddSingleton<MessageRouter>()
+            .AddSingleton<CallbackQueryRouter>()
+            .AddTransient<BotNavigationManager>()
             .AddHostedService<PollingService>();
         
         return services;

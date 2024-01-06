@@ -2,6 +2,10 @@
 using MediatR;
 using Telegram.Bot.Types;
 using TelegramMonitorBot.TelegramBotClient.Application.Commands.PrepareChannelForPhrasesAdding;
+using TelegramMonitorBot.TelegramBotClient.Application.Commands.RemovePhrase;
+using TelegramMonitorBot.TelegramBotClient.Application.Commands.TurnOnSubscribeMode;
+using TelegramMonitorBot.TelegramBotClient.Application.Commands.UnsubscribeFromChannel;
+using TelegramMonitorBot.TelegramBotClient.Application.Common;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMenu;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannelPhrases;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
@@ -21,7 +25,7 @@ public class CallbackQueryRouter
     
     private const string RemovePhrasesChannelIdPlaceholder = "channelId";
     private const string RemovePhrasesPagePlaceholder = "page";
-    private static readonly Regex RemovePhrasesChannelIdRegex = new (@$"^\/remove_phrases_from_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
+    private static readonly Regex RemovePhrasesChannelIdRegex = new (@$"^\/remove_phrases_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
 
     private const string RemovePrecisePhraseChannelIdPlaceholder = "channelId";
     private const string RemovePrecisePhrasePlaceholder = "phrase";
@@ -32,7 +36,7 @@ public class CallbackQueryRouter
     private static readonly Regex UnsubscribeChannelIdRegex = new (@$"^\/unsubscribe_from_(?<{UnsubscribeChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
 
     // TODO Not static 
-    public static IBaseRequest? RouteRequest(CallbackQuery callbackQuery)
+    public IBaseRequest? RouteRequest(CallbackQuery callbackQuery)
     {
         var callbackData = callbackQuery.Data;
         if (callbackData is null)
@@ -60,54 +64,65 @@ public class CallbackQueryRouter
         {
             return removePhrasesFromChannelRequest;
         }
-        
-        var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackData);
-        if (addPhrasesMatch.Success)
+
+        if (TryRouteRemovePrecisePhrase(callbackQuery) is { } removePhraseRequest)
         {
-            var channelIdString = addPhrasesMatch.Groups[AddPhrasesChannelIdPlaceholder].Value;
-            var channelId = long.Parse(channelIdString);
-            // await PrepareForAddingPhrases(callbackQuery.Message!, channelId, cancellationToken);
-            return null;
-        }
-        
-        var removePhrasesMatch = RemovePhrasesChannelIdRegex.Match(callbackData);
-        if(removePhrasesMatch.Success)
-        {
-            var channelIdString = removePhrasesMatch.Groups[RemovePhrasesChannelIdPlaceholder].Value;
-            var channelId = long.Parse(channelIdString);
-            var removeChannelPage = 1;
-            if (removePhrasesMatch.Groups[RemovePhrasesPagePlaceholder] is {Success: true} pageGroup)
-            {
-                removeChannelPage = int.Parse(pageGroup.Value);
-            }
-            
-            // await ShowChannelPhrases(callbackQuery.Message!, channelId, page, cancellationToken);
-            return null;
+            return removePhraseRequest;
         }
 
-        var removePrecisePhraseMatch = RemovePrecisePhraseRegex.Match(callbackData);
+        if (TryRouteUnsubscribe(callbackQuery) is { } unsubscribeRequest)
+        {
+            return  unsubscribeRequest;
+        }
+        
+        if (TryRouteSubscribe(callbackQuery) is { } subscribeRequest)
+        {
+            return subscribeRequest;
+        }
+
+        if (TryRouteIgnoreCallback(callbackQuery) is { } ignoreCallbackRequest)
+        {
+            return  ignoreCallbackRequest;
+        }
+
+        return null;
+    }
+
+    private static IgnoreQueryRequest? TryRouteIgnoreCallback(CallbackQuery callbackQuery)
+    {
+        return callbackQuery.Data == "/phrase_ignore" ? IgnoreQueryRequest.Instance : null;
+    }
+
+
+    private static TurnOnSubscribeModeRequest? TryRouteSubscribe(CallbackQuery callbackQuery)
+    {
+        return callbackQuery.Data == "/subscribe" ? new TurnOnSubscribeModeRequest(callbackQuery) : null;
+    }
+    
+    private static UnsubscribeFromChannelRequest? TryRouteUnsubscribe(CallbackQuery callbackQuery)
+    {
+        var unsubscribeFromChannelMatch = UnsubscribeChannelIdRegex.Match(callbackQuery.Data!);
+        if (unsubscribeFromChannelMatch.Success)
+        {
+            var channelIdString = unsubscribeFromChannelMatch.Groups[UnsubscribeChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            
+            return new UnsubscribeFromChannelRequest(callbackQuery, channelId);
+        }
+
+        return null;
+    }
+    
+    private static RemovePhraseRequest? TryRouteRemovePrecisePhrase(CallbackQuery callbackQuery)
+    {
+        var removePrecisePhraseMatch = RemovePrecisePhraseRegex.Match(callbackQuery.Data!);
         if (removePrecisePhraseMatch.Success)
         {
             var channelIdString = removePrecisePhraseMatch.Groups[RemovePrecisePhraseChannelIdPlaceholder].Value;
             var channelId = long.Parse(channelIdString);
             var phrase = removePrecisePhraseMatch.Groups[RemovePrecisePhrasePlaceholder].Value;
-            // await RemovePrecisePhrase(callbackQuery, channelId, phrase, cancellationToken);
-            return null;
-        }
-        
-        var unsubscribeFromChannelMatch = UnsubscribeChannelIdRegex.Match(callbackData);
-        if (unsubscribeFromChannelMatch.Success)
-        {
-            var channelIdString = unsubscribeFromChannelMatch.Groups[UnsubscribeChannelIdPlaceholder].Value;
-            var channelId = long.Parse(channelIdString);
-            // await Unsubscribe(callbackQuery, channelId, cancellationToken);
-            return null;
-        }
-        
-        if (callbackQuery.Data == "/subscribe")
-        {
-            // await Subscribe(callbackQuery.Message!, cancellationToken);
-            return null;
+            
+            return new RemovePhraseRequest(callbackQuery, channelId, phrase);
         }
 
         return null;
@@ -130,8 +145,7 @@ public class CallbackQueryRouter
 
     private static GetChannelsRequest? TryRouteChannelsPage(CallbackQuery callbackQuery)
     {
-        string callbackData = callbackQuery.Data!;
-        var channelPageMatch = ChannelPageRegex.Match(callbackData);
+        var channelPageMatch = ChannelPageRegex.Match(callbackQuery.Data!);
         if (channelPageMatch.Success)
         {
             int? page = null;

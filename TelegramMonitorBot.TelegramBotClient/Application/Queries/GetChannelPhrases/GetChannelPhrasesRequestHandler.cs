@@ -54,7 +54,7 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
         var phrasesKeyboardButtons = pageResult
             .Select(t => new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithCallbackData(t, "phrase_ignore"),
+                InlineKeyboardButton.WithCallbackData(t, "/phrase_ignore"),
                 InlineKeyboardButton.WithCallbackData("Удалить", $"/remove_phrase_{channelId}_{t}")
             })
             .ToList();
@@ -68,13 +68,13 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
         if (pager.Page > 1)
         {
             additionalButtons.Add(
-                InlineKeyboardButton.WithCallbackData("Назад", $"/remove_phrases_from_{channelId}_{pager.Page - 1}"));
+                InlineKeyboardButton.WithCallbackData("Назад", $"/remove_phrases_{channelId}_{pager.Page - 1}"));
         }
 
         if (pageResult.PageNumber < pageResult.PagesCount)
         {
             additionalButtons.Add(
-                InlineKeyboardButton.WithCallbackData("Вперёд", $"/remove_phrases_from_{channelId}_{pager.Page + 1}"));
+                InlineKeyboardButton.WithCallbackData("Вперёд", $"/remove_phrases_{channelId}_{pager.Page + 1}"));
         }
 
         if (additionalButtons.Count is > 0)

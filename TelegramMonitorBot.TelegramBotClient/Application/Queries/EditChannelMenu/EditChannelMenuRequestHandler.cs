@@ -34,7 +34,7 @@ public class EditChannelMenuRequestHandler : IRequestHandler<EditChannelMenuRequ
         var buttons = new[]
         {
             new[] { new InlineKeyboardButton("Добавить фразы для поиска") { CallbackData = $"/add_phrases_to_{channelId}"}},
-            new[] { new InlineKeyboardButton("Удалить фразы для поиска") { CallbackData = $"/remove_phrases_from_{channelId}"}},
+            new[] { new InlineKeyboardButton("Удалить фразы для поиска") { CallbackData = $"/remove_phrases_{channelId}"}},
             new[] { new InlineKeyboardButton("Отписаться") { CallbackData = $"/unsubscribe_from_{channelId}"}},
             new[] { new InlineKeyboardButton("Перейти в канал") { Url = ChannelService.ChannelLink(channel.Name) }},
             new[] { new InlineKeyboardButton("Назад") { CallbackData = "/my_channels" }},

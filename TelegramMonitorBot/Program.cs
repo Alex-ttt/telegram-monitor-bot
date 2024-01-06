@@ -1,11 +1,7 @@
 ﻿using TelegramMonitorBot.AmazonSecretsManagerClient;
-using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage;
-using TelegramMonitorBot.Storage.Repositories.Abstractions;
-using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient;
-using Channel = TelegramMonitorBot.TelegramApiClient.Models.Channel;
 
 var builder = WebApplication.CreateBuilder(args);
 

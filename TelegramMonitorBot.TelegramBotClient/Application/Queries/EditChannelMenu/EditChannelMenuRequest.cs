@@ -1,5 +1,5 @@
 using Telegram.Bot.Types;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.Common;
+using TelegramMonitorBot.TelegramBotClient.Application.Common;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMenu;
 
