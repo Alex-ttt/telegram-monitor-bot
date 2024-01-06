@@ -38,30 +38,18 @@ public class CallbackQueryRouter
             // TODO Do something
             return null;
         }
-        
-        var channelPageMatch = ChannelPageRegex.Match(callbackData);
-        if (channelPageMatch.Success)
-        {
-            int? page = null;
-            if (channelPageMatch.Groups[ChannelPagePlaceholder] is { Success: true} pageGroup)
-            {
-                page = int.Parse(pageGroup.Value);
-            }
 
-            var myChannelsRequest = new GetChannelsRequest(callbackQuery, page);
-            return myChannelsRequest;
+        if (TryRouteChannelsPage(callbackQuery) is { } channelPageRequest)
+        {
+            return channelPageRequest;
         }
 
-        var editChannelMatch = EditChannelIdRegex.Match(callbackData);
-        if (editChannelMatch.Success)
+        if (TryRouteEditChannelPage(callbackQuery) is {}  editChannelPageRequest)
         {
-            var channelIdString = editChannelMatch.Groups[EditChannelIdPlaceholder].Value;
-            var channelId = long.Parse(channelIdString);
-            var editChannelMenuRequest = new EditChannelMenuRequest(callbackQuery, channelId);
-            
-            return editChannelMenuRequest;
+            return editChannelPageRequest;
         }
         
+
         var addPhrasesMatch = AddPhrasesChannelIdRegex.Match(callbackData);
         if (addPhrasesMatch.Success)
         {
@@ -109,6 +97,40 @@ public class CallbackQueryRouter
         {
             // await Subscribe(callbackQuery.Message!, cancellationToken);
             return null;
+        }
+
+        return null;
+    }
+
+    private static EditChannelMenuRequest? TryRouteEditChannelPage(CallbackQuery callbackQuery)
+    {
+        var editChannelMatch = EditChannelIdRegex.Match(callbackQuery.Data!);
+        if (editChannelMatch.Success)
+        {
+            var channelIdString = editChannelMatch.Groups[EditChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            var editChannelMenuRequest = new EditChannelMenuRequest(callbackQuery, channelId);
+
+            return editChannelMenuRequest;
+        }
+
+        return null;
+    }
+
+    private static GetChannelsRequest? TryRouteChannelsPage(CallbackQuery callbackQuery)
+    {
+        string callbackData = callbackQuery.Data!;
+        var channelPageMatch = ChannelPageRegex.Match(callbackData);
+        if (channelPageMatch.Success)
+        {
+            int? page = null;
+            if (channelPageMatch.Groups[ChannelPagePlaceholder] is {Success: true} pageGroup)
+            {
+                page = int.Parse(pageGroup.Value);
+            }
+
+            var myChannelsRequest = new GetChannelsRequest(callbackQuery, page);
+            return myChannelsRequest;
         }
 
         return null;
