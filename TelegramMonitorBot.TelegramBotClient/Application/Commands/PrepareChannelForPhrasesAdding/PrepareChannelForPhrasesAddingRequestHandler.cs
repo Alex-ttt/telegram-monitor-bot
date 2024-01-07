@@ -9,20 +9,20 @@ namespace TelegramMonitorBot.TelegramBotClient.Application.Commands.PrepareChann
 public class PrepareChannelForPhrasesAddingRequestHandler : IRequestHandler<PrepareChannelForPhrasesAddingRequest>
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly ITelegramRepository _telegramRepository;
+    private readonly IChannelUserRepository _channelUserRepository;
     private readonly ChatContextManager _chatContextManager;
 
-    public PrepareChannelForPhrasesAddingRequestHandler(ITelegramBotClient botClient, ITelegramRepository telegramRepository, ChatContextManager chatContextManager)
+    public PrepareChannelForPhrasesAddingRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository, ChatContextManager chatContextManager)
     {
         _botClient = botClient;
-        _telegramRepository = telegramRepository;
+        _channelUserRepository = channelUserRepository;
         _chatContextManager = chatContextManager;
     }
 
     public async Task Handle(PrepareChannelForPhrasesAddingRequest request, CancellationToken cancellationToken)
     {
         var chatId = request.CallbackQuery.Message!.Chat.Id;
-        var channel = await _telegramRepository.GetChannel(request.ChannelId, cancellationToken);
+        var channel = await _channelUserRepository.GetChannel(request.ChannelId, cancellationToken);
         if (channel is null)
         {
             await _botClient.SendTextMessageAsync(

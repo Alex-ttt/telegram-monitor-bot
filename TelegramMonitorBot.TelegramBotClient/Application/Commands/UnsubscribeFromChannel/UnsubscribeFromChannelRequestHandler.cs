@@ -12,20 +12,20 @@ namespace TelegramMonitorBot.TelegramBotClient.Application.Commands.UnsubscribeF
 public class UnsubscribeFromChannelRequestHandler : IRequestHandler<UnsubscribeFromChannelRequest>
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly ITelegramRepository _telegramRepository;
+    private readonly IChannelUserRepository _channelUserRepository;
     private readonly BotNavigationManager _botNavigationManager;
 
-    public UnsubscribeFromChannelRequestHandler(ITelegramBotClient botClient, ITelegramRepository telegramRepository, BotNavigationManager botNavigationManager)
+    public UnsubscribeFromChannelRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository, BotNavigationManager botNavigationManager)
     {
         _botClient = botClient;
-        _telegramRepository = telegramRepository;
+        _channelUserRepository = channelUserRepository;
         _botNavigationManager = botNavigationManager;
     }
 
     public async Task Handle(UnsubscribeFromChannelRequest request, CancellationToken cancellationToken)
     {
         var message = request.CallbackQuery.Message!;
-        await _telegramRepository.RemoveChannelUser(request.ChannelId, message.Chat.Id, cancellationToken);
+        await _channelUserRepository.RemoveChannelUser(request.ChannelId, message.Chat.Id, cancellationToken);
         
         await _botClient.AnswerCallbackQueryAsync(request.CallbackQuery.Id, $"Вы успешно отписались от канала", cancellationToken: cancellationToken);
 
@@ -37,7 +37,7 @@ public class UnsubscribeFromChannelRequestHandler : IRequestHandler<UnsubscribeF
     private async Task<PageResult<Channel>> GetChannels(long chatId, CancellationToken cancellationToken)
     {
         var channelsPager = ChannelService.GetDefaultChannelsListPager(1);
-        var channels = await _telegramRepository.GetChannels(chatId, channelsPager, cancellationToken);
+        var channels = await _channelUserRepository.GetChannels(chatId, channelsPager, cancellationToken);
 
         return channels;
     }

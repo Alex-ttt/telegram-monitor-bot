@@ -18,7 +18,7 @@ public class DynamoClientFactory
     {
         var clientConfig = new AmazonDynamoDBConfig
         {
-            RegionEndpoint = RegionEndpoint.GetBySystemName(_awsOptions.Value.Region)
+            RegionEndpoint = RegionEndpoint.GetBySystemName(_awsOptions.Value.Region),
         };
 
         if (_awsOptions.Value.DynamoDb?.ServiceURL is { } serviceUrl)

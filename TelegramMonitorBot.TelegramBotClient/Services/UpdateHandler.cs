@@ -23,7 +23,7 @@ public class UpdateHandler : IUpdateHandler
     private readonly ITelegramBotClient _botClient;
     private readonly ILogger<UpdateHandler> _logger;
     private readonly ChatContextManager _chatContextManager;
-    private readonly ITelegramRepository _telegramRepository;
+    private readonly IChannelUserRepository _channelUserRepository;
     private readonly ITelegramApiClient _telegramApiClient;
     private readonly IMediator _mediator;
     private readonly CallbackQueryRouter _callbackQueryRouter;
@@ -32,13 +32,13 @@ public class UpdateHandler : IUpdateHandler
     public UpdateHandler(
         ITelegramBotClient botClient, 
         ILogger<UpdateHandler> logger, 
-        ChatContextManager chatContextManager, ITelegramRepository telegramRepository, ITelegramApiClient telegramApiClient, IMediator mediator, CallbackQueryRouter callbackQueryRouter, MessageRouter messageRouter)
+        ChatContextManager chatContextManager, IChannelUserRepository channelUserRepository, ITelegramApiClient telegramApiClient, IMediator mediator, CallbackQueryRouter callbackQueryRouter, MessageRouter messageRouter)
     {
         _mediator = mediator;
         _callbackQueryRouter = callbackQueryRouter;
         _messageRouter = messageRouter;
-        (_botClient, _chatContextManager, _telegramRepository, _telegramApiClient, _logger) = 
-            (botClient, chatContextManager, telegramRepository, telegramApiClient, logger);
+        (_botClient, _chatContextManager, _channelUserRepository, _telegramApiClient, _logger) = 
+            (botClient, chatContextManager, channelUserRepository, telegramApiClient, logger);
     }
     
     public async Task HandleUpdateAsync(ITelegramBotClient telegramBotClient, Update update, CancellationToken cancellationToken)
@@ -117,7 +117,7 @@ public class UpdateHandler : IUpdateHandler
                     cancellationToken: cancellationToken);
             }
 
-            var alreadySubscribed = await _telegramRepository.CheckChannelWithUser(channel.Id, message.Chat.Id, cancellationToken);
+            var alreadySubscribed = await _channelUserRepository.CheckChannelWithUser(channel.Id, message.Chat.Id, cancellationToken);
             if (alreadySubscribed)
             {
                 return await _botClient.SendTextMessageAsync(
@@ -128,7 +128,7 @@ public class UpdateHandler : IUpdateHandler
 
             var user = new Domain.Models.User(message.Chat.Id, message.Chat.Username ?? "_unknown_");
 
-            await _telegramRepository.PutUserChannel(
+            await _channelUserRepository.PutUserChannel(
                 new(message.Chat.Id, message.Chat.Username ?? "_unknown_"),
                 new(channel.Id, channel.Name),
                 cancellationToken);
@@ -355,7 +355,7 @@ public class UpdateHandler : IUpdateHandler
 
     private async Task AddPhasesToChannel(Message message, long channelId, CancellationToken cancellationToken)
     {
-        var channel = await _telegramRepository.GetChannel(channelId, cancellationToken);
+        var channel = await _channelUserRepository.GetChannel(channelId, cancellationToken);
         if (channel is null)
         {
             await _botClient.SendTextMessageAsync(
@@ -381,7 +381,7 @@ public class UpdateHandler : IUpdateHandler
 
         var userId = message.Chat.Id;
         var channelUser = new ChannelUser(channel!.ChannelId, userId, phrases);
-        await _telegramRepository.AddPhrases(channelUser, cancellationToken);
+        await _channelUserRepository.AddPhrases(channelUser, cancellationToken);
 
         var keyboard = new InlineKeyboardMarkup(
             new[]
@@ -430,7 +430,7 @@ public class UpdateHandler : IUpdateHandler
 
     private async Task<Message> MyChannels(Message message, Pager? pager, CancellationToken cancellationToken)
     {
-        PageResult<Channel> channels = await _telegramRepository.GetChannels(message.Chat.Id, pager ?? GetDefaultChannelsPager(1), cancellationToken);
+        PageResult<Channel> channels = await _channelUserRepository.GetChannels(message.Chat.Id, pager ?? GetDefaultChannelsPager(1), cancellationToken);
 
         if (channels.Any() is false)
         {

@@ -88,4 +88,25 @@ internal static class ModelsMapper
 
         return new ChannelUser(channelId, userId, phrases);
     }
+
+    internal static Dictionary<string, AttributeValue> GetChannelUserKey(ChannelUser channelUser)
+    {
+        return GetChannelUserKey(channelUser.ChannelId, channelUser.UserId);
+    }
+    
+    internal static Dictionary<string, AttributeValue> GetChannelUserKey(long channelId, long userId)
+    {
+        return new() {
+            [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
+            [SortKeyName] = new() { S = UserIdToKeyValue(userId) },
+        };
+    }
+
+    internal static Dictionary<string, AttributeValue> GetChannelKey(long channelId)
+    {
+        return new() {
+            [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
+            [SortKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
+        }; 
+    }
 }

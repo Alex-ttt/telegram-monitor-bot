@@ -18,26 +18,4 @@ public class ChannelUser
     public long ChannelId { get; }
     public List<string>? Phrases { get; private set; }
     public DateTimeOffset Created { get; init; } = DateTimeOffset.UtcNow;
-
-    public void AddPhrases(IEnumerable<string> phrases)
-    {
-        if (Phrases is null)
-        {
-            Phrases = phrases.Distinct().ToList();
-        }
-        else
-        {
-            Phrases.AddRange(phrases.Where(t => Phrases.Contains(t) is false));
-        }
-    }
-    
-    public void RemovePhrases(IEnumerable<string> phrases)
-    {
-        Phrases?.RemoveAll(phrases.Contains);
-    }
-    
-    public void RemovePhrase(string phrase)
-    {
-        Phrases?.Remove(phrase);
-    }
 }

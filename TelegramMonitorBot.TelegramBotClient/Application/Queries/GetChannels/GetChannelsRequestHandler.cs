@@ -13,18 +13,18 @@ namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
 public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly ITelegramRepository _telegramRepository;
+    private readonly IChannelUserRepository _channelUserRepository;
     private readonly BotNavigationManager _botNavigationManager;
     private readonly ChatContextManager _chatContextManager;
 
     public GetChannelsRequestHandler(
         ITelegramBotClient botClient, 
-        ITelegramRepository telegramRepository, 
+        IChannelUserRepository channelUserRepository, 
         BotNavigationManager botNavigationManager,
         ChatContextManager chatContextManager)
     {
         _botClient = botClient;
-        _telegramRepository = telegramRepository;
+        _channelUserRepository = channelUserRepository;
         _botNavigationManager = botNavigationManager;
         _chatContextManager = chatContextManager;
     }
@@ -47,7 +47,7 @@ public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
     {
         var channelsPager = ChannelService.GetDefaultChannelsListPager(request.Page);
         var channels = 
-            await _telegramRepository.GetChannels(request.CallbackQuery.Message!.Chat.Id, channelsPager, cancellationToken);
+            await _channelUserRepository.GetChannels(request.CallbackQuery.Message!.Chat.Id, channelsPager, cancellationToken);
 
         return channels;
     }

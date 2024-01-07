@@ -10,22 +10,22 @@ namespace TelegramMonitorBot.TelegramBotClient.Application.Commands.AddPhrasesTo
 public class AddPhrasesToChannelRequestHandler : IRequestHandler<AddPhrasesToChannelRequest>
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly ITelegramRepository _telegramRepository;
+    private readonly IChannelUserRepository _channelUserRepository;
     private readonly ChatContextManager _chatContextManager;
 
     public AddPhrasesToChannelRequestHandler(
         ITelegramBotClient botClient, 
-        ITelegramRepository telegramRepository, 
+        IChannelUserRepository channelUserRepository, 
         ChatContextManager chatContextManager)
     {
         _botClient = botClient;
-        _telegramRepository = telegramRepository;
+        _channelUserRepository = channelUserRepository;
         _chatContextManager = chatContextManager;
     }
 
     public async Task Handle(AddPhrasesToChannelRequest request, CancellationToken cancellationToken)
     {
-        var channel = await _telegramRepository.GetChannel(request.ChannelId, cancellationToken);
+        var channel = await _channelUserRepository.GetChannel(request.ChannelId, cancellationToken);
         if (channel is null)
         {
             await _botClient.SendTextMessageAsync(
@@ -50,7 +50,7 @@ public class AddPhrasesToChannelRequestHandler : IRequestHandler<AddPhrasesToCha
         }
 
         var channelUser = new ChannelUser(request.ChannelId, request.UserId, phrases);
-        await _telegramRepository.AddPhrases(channelUser, cancellationToken);
+        await _channelUserRepository.AddPhrases(channelUser, cancellationToken);
 
         var keyboard = new InlineKeyboardMarkup(
             new[]

@@ -9,17 +9,17 @@ namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMe
 public class EditChannelMenuRequestHandler : IRequestHandler<EditChannelMenuRequest>
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly ITelegramRepository _telegramRepository;
+    private readonly IChannelUserRepository _channelUserRepository;
 
-    public EditChannelMenuRequestHandler(ITelegramBotClient botClient, ITelegramRepository telegramRepository)
+    public EditChannelMenuRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository)
     {
         _botClient = botClient;
-        _telegramRepository = telegramRepository;
+        _channelUserRepository = channelUserRepository;
     }
 
     public async Task Handle(EditChannelMenuRequest request, CancellationToken cancellationToken)
     {
-        var channel = await _telegramRepository.GetChannel(request.ChannelId, cancellationToken);
+        var channel = await _channelUserRepository.GetChannel(request.ChannelId, cancellationToken);
         var chatId = request.CallbackQuery.Message!.Chat.Id;
         var channelId = request.ChannelId;
         if (channel is null)

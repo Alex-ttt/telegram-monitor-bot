@@ -1,4 +1,5 @@
-﻿using Amazon.DynamoDBv2;
+﻿using System.Text;
+using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Caching;
@@ -8,12 +9,12 @@ using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 
 namespace TelegramMonitorBot.Storage.Repositories;
 
-internal class TelegramRepository : ITelegramRepository
+internal class ChannelUserRepository : IChannelUserRepository
 {
     private readonly AmazonDynamoDBClient _dynamoDbClient;
     private readonly StorageMemoryCache _memoryCache;
 
-    public TelegramRepository(
+    public ChannelUserRepository(
         DynamoClientFactory clientFactory, 
         StorageMemoryCache memoryCache)
     {
@@ -38,11 +39,7 @@ internal class TelegramRepository : ITelegramRepository
         var getChannelRequest = new GetItemRequest
         {
             TableName = DynamoDbConfig.TableName,
-            Key =
-            {
-                [DynamoDbConfig.PartitionKeyName] = new() { S = ModelsMapper.ChannelIdToKeyValue(channelId) },
-                [DynamoDbConfig.SortKeyName] = new() { S = ModelsMapper.ChannelIdToKeyValue(channelId) },
-            }
+            Key = ModelsMapper.GetChannelKey(channelId)
         };
         
         var channelResult = await _dynamoDbClient.GetItemAsync(getChannelRequest, cancellationToken);
@@ -153,13 +150,14 @@ internal class TelegramRepository : ITelegramRepository
         var existedChannelUser = await GetChannelUser(channelUser.ChannelId, channelUser.UserId, cancellationToken);
         if (existedChannelUser is null)
         {
-            
             return;
         }
-        
-        existedChannelUser.AddPhrases(phrases);
-        await PutItem(existedChannelUser.ToDictionary(), cancellationToken);
-        _memoryCache.ResetChannelUserPhrases(channelUser.ChannelId, channelUser.UserId);
+
+        var newPhrases = existedChannelUser.Phrases is not { Count: > 0 }
+            ? phrases.Distinct().ToList()
+            : phrases.Union(existedChannelUser.Phrases).Distinct().ToList();
+
+        await SetNewPhrases(channelUser, newPhrases, cancellationToken);
     }
 
     public async Task<ICollection<string>> GetChannelUserPhrases(long channelId, long userId, CancellationToken cancellationToken)
@@ -183,13 +181,13 @@ internal class TelegramRepository : ITelegramRepository
     public async Task RemovePhrase(long channelId, long userId, string phrase, CancellationToken cancellationToken)
     {
         var channelUser = await GetChannelUser(channelId, userId, cancellationToken);
-        if (channelUser is null)
+        if (channelUser?.Phrases is null)
         {
             return;
         }
         
-        channelUser.RemovePhrase(phrase);
-        await PutItem(channelUser.ToDictionary(), cancellationToken);
+        channelUser.Phrases.Remove(phrase);
+        await SetNewPhrases(channelUser, channelUser.Phrases, cancellationToken);
     }
 
     public async Task RemoveChannelUser(long channelId, long userId, CancellationToken cancellationToken)
@@ -197,17 +195,27 @@ internal class TelegramRepository : ITelegramRepository
         var deleteItemRequest = new DeleteItemRequest
         {
             TableName = DynamoDbConfig.TableName,
-            Key =
-            {
-                [DynamoDbConfig.PartitionKeyName] =
-                    new AttributeValue {S = ModelsMapper.ChannelIdToKeyValue(channelId)},
-                [DynamoDbConfig.SortKeyName] = new AttributeValue {S = ModelsMapper.UserIdToKeyValue(userId)},
-            }
+            Key = ModelsMapper.GetChannelUserKey(channelId, userId)
         };
         
         _memoryCache.ResetUserChannels(userId);
         _memoryCache.ResetChannelUserPhrases(channelId, userId);
         await _dynamoDbClient.DeleteItemAsync(deleteItemRequest, cancellationToken);
+    }
+    
+    private async Task SetNewPhrases(ChannelUser channelUser, List<string> newPhrases, CancellationToken cancellationToken)
+    {
+        var updateItemRequest = new UpdateItemRequest
+        {
+            TableName = DynamoDbConfig.TableName, 
+            Key = ModelsMapper.GetChannelUserKey(channelUser),
+            ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue> { { ":newPhrases", new AttributeValue { SS = newPhrases } } },
+            UpdateExpression = "SET #phrases = :newPhrases",
+        };
+        
+        await _dynamoDbClient.UpdateItemAsync(updateItemRequest, cancellationToken);
+        _memoryCache.ResetChannelUserPhrases(channelUser.ChannelId, channelUser.UserId);
     }
 
     private async Task<ChannelUser?> GetChannelUser(long channelId, long userId, CancellationToken cancellationToken)
@@ -215,11 +223,7 @@ internal class TelegramRepository : ITelegramRepository
         var getChannelUserRequest = new GetItemRequest
         {
             TableName = DynamoDbConfig.TableName,
-            Key =
-            {
-                [DynamoDbConfig.PartitionKeyName] = new() { S = ModelsMapper.ChannelIdToKeyValue(channelId) },
-                [DynamoDbConfig.SortKeyName] = new() { S = ModelsMapper.UserIdToKeyValue(userId) },
-            },
+            Key = ModelsMapper.GetChannelUserKey(channelId, userId),
         };
         
         var channelUserResult = await _dynamoDbClient.GetItemAsync(getChannelUserRequest, cancellationToken);

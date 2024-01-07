@@ -3,7 +3,7 @@ using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 
 namespace TelegramMonitorBot.Storage.Repositories.Abstractions;
 
-public interface ITelegramRepository
+public interface IChannelUserRepository
 {
     Task<bool> CheckChannelWithUser(long channelId, long userId, CancellationToken cancellationToken = default);
     Task<bool> PutUserChannel(User user, Channel channel, CancellationToken cancellationToken = default);

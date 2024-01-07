@@ -10,26 +10,26 @@ namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannelPhr
 public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrasesRequest>
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly ITelegramRepository _telegramRepository;
+    private readonly IChannelUserRepository _channelUserRepository;
 
-    public GetChannelPhrasesRequestHandler(ITelegramBotClient botClient, ITelegramRepository telegramRepository)
+    public GetChannelPhrasesRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository)
     {
         _botClient = botClient;
-        _telegramRepository = telegramRepository;
+        _channelUserRepository = channelUserRepository;
     }
 
     public async Task Handle(GetChannelPhrasesRequest request, CancellationToken cancellationToken)
     {
         var channelId = request.ChannelId;
         var chatId = request.CallbackQuery.Message!.Chat.Id;
-        var phrases = await _telegramRepository.GetChannelUserPhrases(channelId, chatId, cancellationToken);
+        var phrases = await _channelUserRepository.GetChannelUserPhrases(channelId, chatId, cancellationToken);
         if (phrases.Count is 0)
         {
             await SendNoPhrasesInChannelMessage(channelId, chatId, cancellationToken);
             return;
         }
         
-        var channel = await _telegramRepository.GetChannel(channelId, cancellationToken);
+        var channel = await _channelUserRepository.GetChannel(channelId, cancellationToken);
         if (channel is null)
         {
             await SendChannelNotFoundMessage(chatId, cancellationToken);
