@@ -10,13 +10,12 @@ internal static class DynamoDbConfig
 
     internal static class Attributes
     {
-        internal static string ChannelName => "Name";
-        internal static string ChannelCreated => "Created";
-        internal static string UserName => "Name";
-        internal static string UserCreated => "Created";
-        
-        internal static string ChannelUserCreated => "Created";
-        internal static string ChannelUserPhrases => "Phrases";
+        internal const string ChannelName = "Name";
+        internal const string ChannelCreated = "Created";
+        internal const string UserName = "Name";
+        internal const string UserCreated = "Created";
+        internal const string ChannelUserCreated = "Created";
+        internal const string ChannelUserPhrases = "Phrases";
 
     }
 }
