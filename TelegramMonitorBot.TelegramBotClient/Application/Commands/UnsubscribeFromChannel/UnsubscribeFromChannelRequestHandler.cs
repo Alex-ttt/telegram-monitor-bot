@@ -30,7 +30,7 @@ public class UnsubscribeFromChannelRequestHandler : IRequestHandler<UnsubscribeF
         await _botClient.AnswerCallbackQueryAsync(request.CallbackQuery.Id, $"Вы успешно отписались от канала", cancellationToken: cancellationToken);
 
         var myChannels = await GetChannels(message.Chat.Id, cancellationToken);
-        var messageToAnswer = _botNavigationManager.GetMyChannelsMessageRequest(message, myChannels);
+        var messageToAnswer = _botNavigationManager.GetMyChannelsMessageRequest(message.Chat.Id, myChannels);
         await _botClient.SendTextMessageRequestAsync(messageToAnswer, cancellationToken);
     }
     

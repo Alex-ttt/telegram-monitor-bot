@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Amazon.DynamoDBv2;
+﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Caching;

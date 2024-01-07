@@ -34,7 +34,7 @@ public class RemovePhraseRequestHandler : IRequestHandler<RemovePhraseRequest>
         var channel = await _channelUserRepository.GetChannel(channelId, cancellationToken);
         var phrases = await _channelUserRepository.GetChannelUserPhrases(channelId, chatId, cancellationToken);
 
-        var messageRequest = _botNavigationManager.GetChannelPhrasesRequest(request.CallbackQuery.Message!, channel, phrases, 1);
+        var messageRequest = _botNavigationManager.GetChannelPhrasesRequest(request.CallbackQuery.Message!.Chat.Id, channel, phrases, 1);
         await _botClient.SendTextMessageRequestAsync(messageRequest, cancellationToken);
     }
 }

@@ -1,6 +1,5 @@
-﻿using Telegram.Bot.Types;
-using TelegramMonitorBot.TelegramBotClient.Application.Common;
+﻿using MediatR;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
 
-public record GetChannelsRequest(CallbackQuery CallbackQuery, int? Page) : CallbackQueryRequest(CallbackQuery);
+public record GetChannelsRequest(long ChatId, int? Page) : IRequest;

@@ -31,23 +31,18 @@ public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
 
     public async Task Handle(GetChannelsRequest request, CancellationToken cancellationToken)
     {
-        if (request.CallbackQuery.Message is not { } message)
-        {
-            throw new ArgumentNullException(nameof(request.CallbackQuery.Message), "Message on callback query can't be null");
-        }
-        
         var channels = await GetChannels(request, cancellationToken);
 
-        var myChannelsRequest = _botNavigationManager.GetMyChannelsMessageRequest(message, channels);
+        var myChannelsRequest = _botNavigationManager.GetMyChannelsMessageRequest(request.ChatId, channels);
         await _botClient.SendTextMessageRequestAsync(myChannelsRequest, cancellationToken);
-        _chatContextManager.OnMainMenu(request.CallbackQuery.Message!.Chat.Id);
+        _chatContextManager.OnMainMenu(request.ChatId);
     }
 
     private async Task<PageResult<Channel>> GetChannels(GetChannelsRequest request, CancellationToken cancellationToken)
     {
         var channelsPager = ChannelService.GetDefaultChannelsListPager(request.Page);
         var channels = 
-            await _channelUserRepository.GetChannels(request.CallbackQuery.Message!.Chat.Id, channelsPager, cancellationToken);
+            await _channelUserRepository.GetChannels(request.ChatId, channelsPager, cancellationToken);
 
         return channels;
     }

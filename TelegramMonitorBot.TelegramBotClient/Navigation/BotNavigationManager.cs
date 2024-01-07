@@ -1,5 +1,4 @@
-﻿using Telegram.Bot.Types;
-using Telegram.Bot.Types.ReplyMarkups;
+﻿using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramBotClient.Application.Services;
@@ -9,11 +8,11 @@ namespace TelegramMonitorBot.TelegramBotClient.Navigation;
 
 public class BotNavigationManager
 {
-    public MessageRequest GetMyChannelsMessageRequest(Message message, PageResult<Channel> channels)
+    public MessageRequest GetMyChannelsMessageRequest(long chatId, PageResult<Channel> channels)
     {
         if (channels.Any() is false)
         {
-            return new MessageRequest(message.Chat.Id,"У вас ещё нет каналов");
+            return new MessageRequest(chatId,"У вас ещё нет каналов");
         }
 
         var buttons = channels
@@ -40,16 +39,16 @@ public class BotNavigationManager
         }
         
         var keyboard = new InlineKeyboardMarkup(buttons);
-        var request = new MessageRequest(message.Chat.Id, "Полный список каналов, на которые вы подписаны", keyboard);
+        var request = new MessageRequest(chatId, "Полный список каналов, на которые вы подписаны", keyboard);
 
         return request;
     }
 
-    public MessageRequest GetChannelPhrasesRequest(Message message, Channel? channel, ICollection<string> phrases, int page)
+    public MessageRequest GetChannelPhrasesRequest(long chatId, Channel? channel, ICollection<string> phrases, int page)
     {
         if (channel is null)
         {
-            return new MessageRequest(message.Chat.Id, "Канал не найден");
+            return new MessageRequest(chatId, "Канал не найден");
         }
 
         var channelId = channel.ChannelId;
@@ -62,7 +61,7 @@ public class BotNavigationManager
                     new[] { InlineKeyboardButton.WithCallbackData("Вернуться к моим каналам", "/my_channels")}
                 });
             
-            return new MessageRequest(message.Chat.Id, "В данный канал еще не были добавлены фразы", keyboard);
+            return new MessageRequest(chatId, "В данный канал еще не были добавлены фразы", keyboard);
         }
 
         var pager = ChannelService.GetDefaultPhrasesListPager(page);
@@ -100,6 +99,6 @@ public class BotNavigationManager
         }
 
         var phrasesKeyboard = new InlineKeyboardMarkup(phrasesKeyboardButtons);
-        return new MessageRequest(message.Chat.Id, $"Список фраз для канала @{channel.Name}", phrasesKeyboard);
+        return new MessageRequest(chatId, $"Список фраз для канала @{channel.Name}", phrasesKeyboard);
     }
 }

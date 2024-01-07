@@ -154,7 +154,7 @@ public class CallbackQueryRouter
                 page = int.Parse(pageGroup.Value);
             }
 
-            var myChannelsRequest = new GetChannelsRequest(callbackQuery, page);
+            var myChannelsRequest = new GetChannelsRequest(callbackQuery.Message!.Chat.Id, page);
             return myChannelsRequest;
         }
 
