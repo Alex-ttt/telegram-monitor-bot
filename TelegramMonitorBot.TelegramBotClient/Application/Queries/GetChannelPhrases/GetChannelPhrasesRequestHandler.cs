@@ -4,6 +4,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramBotClient.Application.Services;
+using TelegramMonitorBot.TelegramBotClient.Extensions;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannelPhrases;
 
@@ -11,11 +13,16 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
+    private readonly BotNavigationManager _botNavigationManager;
 
-    public GetChannelPhrasesRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository)
+    public GetChannelPhrasesRequestHandler(
+        ITelegramBotClient botClient,
+        IChannelUserRepository channelUserRepository, 
+        BotNavigationManager botNavigationManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
+        _botNavigationManager = botNavigationManager;
     }
 
     public async Task Handle(GetChannelPhrasesRequest request, CancellationToken cancellationToken)
@@ -32,7 +39,9 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
         var channel = await _channelUserRepository.GetChannel(channelId, cancellationToken);
         if (channel is null)
         {
-            await SendChannelNotFoundMessage(chatId, cancellationToken);
+            var channelNotFoundMessage = _botNavigationManager.ChannelNotFound(chatId);
+            await _botClient.SendTextMessageRequestAsync(channelNotFoundMessage, cancellationToken);
+
             return;
         }
 
@@ -54,30 +63,34 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
         var phrasesKeyboardButtons = pageResult
             .Select(t => new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithCallbackData(t, "/phrase_ignore"),
-                InlineKeyboardButton.WithCallbackData("Удалить", $"/remove_phrase_{channelId}_{t}")
+                InlineKeyboardButton.WithCallbackData(t, Routes.PhraseIgnore),
+                InlineKeyboardButton.WithCallbackData("Удалить", Routes.RemovePhrase(channelId, t)),
             })
             .ToList();
 
-        phrasesKeyboardButtons.Add(new List<InlineKeyboardButton>
+        phrasesKeyboardButtons.AddRange(new List<InlineKeyboardButton>[]
         {
-            InlineKeyboardButton.WithCallbackData("Вернуться к каналу", $"/edit_channel_{channelId}")
+            new() { InlineKeyboardButton.WithCallbackData("Добавить другие фразы", Routes.AddPhrases(channelId))},
+            new() { InlineKeyboardButton.WithCallbackData("Вернуться к каналу", Routes.EditChannel(channelId))},
         });
 
-        var additionalButtons = new List<InlineKeyboardButton>();
+        var additionalButtons = new List<InlineKeyboardButton>
+        {
+            Capacity = 0
+        };
         if (pager.Page > 1)
         {
             additionalButtons.Add(
-                InlineKeyboardButton.WithCallbackData("Назад", $"/remove_phrases_{channelId}_{pager.Page - 1}"));
+                InlineKeyboardButton.WithCallbackData("Назад", Routes.ShowChannelPhrases(channelId, pager.Page - 1)));
         }
 
         if (pageResult.PageNumber < pageResult.PagesCount)
         {
             additionalButtons.Add(
-                InlineKeyboardButton.WithCallbackData("Вперёд", $"/remove_phrases_{channelId}_{pager.Page + 1}"));
+                InlineKeyboardButton.WithCallbackData("Вперёд", Routes.ShowChannelPhrases(channelId, pager.Page + 1)));
         }
 
-        if (additionalButtons.Count is > 0)
+        if (additionalButtons.Count > 0)
         {
             phrasesKeyboardButtons.Add(additionalButtons);
         }
@@ -86,21 +99,13 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
         return phrasesKeyboard;
     }
 
-    private Task SendChannelNotFoundMessage(long chatId, CancellationToken cancellationToken)
-    {
-        return _botClient.SendTextMessageAsync(
-            chatId,
-            "Канал не найден",
-            cancellationToken: cancellationToken);
-    }
-
     private async Task SendNoPhrasesInChannelMessage(long channelId, long chatId, CancellationToken cancellationToken)
     {
         var keyboard = new InlineKeyboardMarkup(
             new[]
             {
-                new[] {InlineKeyboardButton.WithCallbackData("Добавить фразы", $"/add_phrases_to_{channelId}")},
-                new[] {InlineKeyboardButton.WithCallbackData("Вернуться к моим каналам", "/my_channels")}
+                new[] {InlineKeyboardButton.WithCallbackData("Добавить фразы", Routes.AddPhrases(channelId))},
+                new[] {InlineKeyboardButton.WithCallbackData("Вернуться к моим каналам", Routes.MyChannels)}
             });
 
         await _botClient.SendTextMessageAsync(

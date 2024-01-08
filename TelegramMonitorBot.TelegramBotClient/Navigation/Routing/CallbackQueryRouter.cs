@@ -1,16 +1,17 @@
 ﻿using System.Text.RegularExpressions;
 using MediatR;
 using Telegram.Bot.Types;
+using TelegramMonitorBot.TelegramBotClient.Application.Commands.AcceptUnsubscribeFromChannel;
 using TelegramMonitorBot.TelegramBotClient.Application.Commands.PrepareChannelForPhrasesAdding;
 using TelegramMonitorBot.TelegramBotClient.Application.Commands.RemovePhrase;
 using TelegramMonitorBot.TelegramBotClient.Application.Commands.TurnOnSubscribeMode;
-using TelegramMonitorBot.TelegramBotClient.Application.Commands.UnsubscribeFromChannel;
 using TelegramMonitorBot.TelegramBotClient.Application.Common;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMenu;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannelPhrases;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
+using TelegramMonitorBot.TelegramBotClient.Application.Queries.UnsubscribeFromChannel;
 
-namespace TelegramMonitorBot.TelegramBotClient.Routing;
+namespace TelegramMonitorBot.TelegramBotClient.Navigation.Routing;
 
 public class CallbackQueryRouter
 {
@@ -23,19 +24,21 @@ public class CallbackQueryRouter
     private const string AddPhrasesChannelIdPlaceholder = "channelId";
     private static readonly Regex AddPhrasesChannelIdRegex = new (@$"^\/add_phrases_to_(?<{AddPhrasesChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
     
-    private const string RemovePhrasesChannelIdPlaceholder = "channelId";
-    private const string RemovePhrasesPagePlaceholder = "page";
-    private static readonly Regex RemovePhrasesChannelIdRegex = new (@$"^\/remove_phrases_(?<{RemovePhrasesChannelIdPlaceholder}>-?\d+)(?<{RemovePhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
+    private const string ShowPhrasesChannelIdPlaceholder = "channelId";
+    private const string ShowPhrasesPagePlaceholder = "page";
+    private static readonly Regex ShowPhrasesChannelIdRegex = new (@$"^\/show_phrases_(?<{ShowPhrasesChannelIdPlaceholder}>-?\d+)(?<{ShowPhrasesPagePlaceholder}>_\d+)?$", RegexOptions.Compiled);
 
     private const string RemovePrecisePhraseChannelIdPlaceholder = "channelId";
     private const string RemovePrecisePhrasePlaceholder = "phrase";
     private static readonly Regex RemovePrecisePhraseRegex =
-        new (@$"^\/remove_phrase_(?<{RemovePrecisePhraseChannelIdPlaceholder}>-?\d+)_(?<{RemovePrecisePhrasePlaceholder}>.+)$", RegexOptions.Compiled);
+        new (@$"^\/rm_phrase_(?<{RemovePrecisePhraseChannelIdPlaceholder}>-?\d+)_(?<{RemovePrecisePhrasePlaceholder}>.+)$", RegexOptions.Compiled);
 
     private const string UnsubscribeChannelIdPlaceholder = "channelId";
     private static readonly Regex UnsubscribeChannelIdRegex = new (@$"^\/unsubscribe_from_(?<{UnsubscribeChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
 
-    // TODO Not static 
+    private const string AcceptUnsubscribeChannelIdPlaceholder = "channelId";
+    private static readonly Regex AcceptUnsubscribeChannelIdRegex = new (@$"^\/accept_unsubscribe_from_(?<{AcceptUnsubscribeChannelIdPlaceholder}>-?\d+)$", RegexOptions.Compiled);
+    
     public IBaseRequest? RouteRequest(CallbackQuery callbackQuery)
     {
         var callbackData = callbackQuery.Data;
@@ -80,9 +83,28 @@ public class CallbackQueryRouter
             return subscribeRequest;
         }
 
+        if (TryRouteAcceptUnsubscribe(callbackQuery) is { } acceptUnsubscribeRequest)
+        {
+            return acceptUnsubscribeRequest;
+        }
+
         if (TryRouteIgnoreCallback(callbackQuery) is { } ignoreCallbackRequest)
         {
             return  ignoreCallbackRequest;
+        }
+        
+        return null;
+    }
+
+    private AcceptUnsubscribeFromChannelRequest? TryRouteAcceptUnsubscribe(CallbackQuery callbackQuery)
+    {
+        var unsubscribeFromChannelMatch = AcceptUnsubscribeChannelIdRegex.Match(callbackQuery.Data!);
+        if (unsubscribeFromChannelMatch.Success)
+        {
+            var channelIdString = unsubscribeFromChannelMatch.Groups[AcceptUnsubscribeChannelIdPlaceholder].Value;
+            var channelId = long.Parse(channelIdString);
+            
+            return new AcceptUnsubscribeFromChannelRequest(callbackQuery, channelId);
         }
 
         return null;
@@ -90,16 +112,16 @@ public class CallbackQueryRouter
 
     private static IgnoreQueryRequest? TryRouteIgnoreCallback(CallbackQuery callbackQuery)
     {
-        return callbackQuery.Data == "/phrase_ignore" ? IgnoreQueryRequest.Instance : null;
+        return callbackQuery.Data is Routes.PhraseIgnore ? IgnoreQueryRequest.Instance : null;
     }
 
 
     private static TurnOnSubscribeModeRequest? TryRouteSubscribe(CallbackQuery callbackQuery)
     {
-        return callbackQuery.Data == "/subscribe" ? new TurnOnSubscribeModeRequest(callbackQuery) : null;
+        return callbackQuery.Data is Routes.Subscribe ? new TurnOnSubscribeModeRequest(callbackQuery) : null;
     }
     
-    private static UnsubscribeFromChannelRequest? TryRouteUnsubscribe(CallbackQuery callbackQuery)
+    private static AskUnsubscribeFromChannelRequest? TryRouteUnsubscribe(CallbackQuery callbackQuery)
     {
         var unsubscribeFromChannelMatch = UnsubscribeChannelIdRegex.Match(callbackQuery.Data!);
         if (unsubscribeFromChannelMatch.Success)
@@ -107,7 +129,7 @@ public class CallbackQueryRouter
             var channelIdString = unsubscribeFromChannelMatch.Groups[UnsubscribeChannelIdPlaceholder].Value;
             var channelId = long.Parse(channelIdString);
             
-            return new UnsubscribeFromChannelRequest(callbackQuery, channelId);
+            return new AskUnsubscribeFromChannelRequest(callbackQuery, channelId);
         }
 
         return null;
@@ -177,13 +199,13 @@ public class CallbackQueryRouter
 
     private static GetChannelPhrasesRequest? TryRouteRemovePhrasesFromChannel(CallbackQuery callbackQuery)
     {
-        var removePhrasesMatch = RemovePhrasesChannelIdRegex.Match(callbackQuery.Data!);
+        var removePhrasesMatch = ShowPhrasesChannelIdRegex.Match(callbackQuery.Data!);
         if(removePhrasesMatch.Success)
         {
-            var channelIdString = removePhrasesMatch.Groups[RemovePhrasesChannelIdPlaceholder].Value;
+            var channelIdString = removePhrasesMatch.Groups[ShowPhrasesChannelIdPlaceholder].Value;
             var channelId = long.Parse(channelIdString);
             var removeChannelPage = 1;
-            if (removePhrasesMatch.Groups[RemovePhrasesPagePlaceholder] is {Success: true} pageGroup)
+            if (removePhrasesMatch.Groups[ShowPhrasesPagePlaceholder] is {Success: true} pageGroup)
             {
                 removeChannelPage = int.Parse(pageGroup.Value);
             }

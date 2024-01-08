@@ -3,6 +3,8 @@ using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
+using TelegramMonitorBot.TelegramBotClient.Extensions;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Commands.PrepareChannelForPhrasesAdding;
 
@@ -11,12 +13,18 @@ public class PrepareChannelForPhrasesAddingRequestHandler : IRequestHandler<Prep
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
     private readonly ChatContextManager _chatContextManager;
+    private readonly BotNavigationManager _botNavigationManager;
 
-    public PrepareChannelForPhrasesAddingRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository, ChatContextManager chatContextManager)
+    public PrepareChannelForPhrasesAddingRequestHandler(
+        ITelegramBotClient botClient, 
+        IChannelUserRepository channelUserRepository, 
+        ChatContextManager chatContextManager, 
+        BotNavigationManager botNavigationManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
         _chatContextManager = chatContextManager;
+        _botNavigationManager = botNavigationManager;
     }
 
     public async Task Handle(PrepareChannelForPhrasesAddingRequest request, CancellationToken cancellationToken)
@@ -25,18 +33,16 @@ public class PrepareChannelForPhrasesAddingRequestHandler : IRequestHandler<Prep
         var channel = await _channelUserRepository.GetChannel(request.ChannelId, cancellationToken);
         if (channel is null)
         {
-            await _botClient.SendTextMessageAsync(
-                chatId,
-                "Канал не найден",
-                cancellationToken: cancellationToken);
-            
+            var channelNotFoundMessage = _botNavigationManager.ChannelNotFound(chatId);
+            await _botClient.SendTextMessageRequestAsync(channelNotFoundMessage, cancellationToken);
+
             return;
         }
 
         var keyboardMarkup = new InlineKeyboardMarkup(
             new[]
             {
-                new[] { InlineKeyboardButton.WithCallbackData("Назад к моим каналам", "/my_channels"), },
+                new[] { InlineKeyboardButton.WithCallbackData("Назад к моим каналам", Routes.MyChannels), },
             });
         
         await _botClient.SendTextMessageAsync(

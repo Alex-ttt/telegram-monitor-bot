@@ -1,5 +1,6 @@
 using MediatR;
 using Telegram.Bot;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.UnknownQuery;
 
@@ -16,7 +17,7 @@ public class UnknownQueryRequestHandler : IRequestHandler<UnknownQueryRequest>
     {
         await _botClient.SendTextMessageAsync(
             request.ChatId, 
-            "Не удалось распознать текущую команду. Используйте /menu, чтобы перейти в главное меню", 
+            $"Не удалось распознать текущую команду. Используйте {Routes.Menu}, чтобы перейти в главное меню", 
             cancellationToken: cancellationToken);
     }
 }

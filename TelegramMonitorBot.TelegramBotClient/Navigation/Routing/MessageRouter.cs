@@ -8,7 +8,7 @@ using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetMenu;
 using TelegramMonitorBot.TelegramBotClient.Application.Queries.UnknownQuery;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 
-namespace TelegramMonitorBot.TelegramBotClient.Routing;
+namespace TelegramMonitorBot.TelegramBotClient.Navigation.Routing;
 
 public class MessageRouter
 {
@@ -35,9 +35,9 @@ public class MessageRouter
     {
         return text switch
         {
-            "/menu" => new GetMenuRequest(userId),
-            "/about" => new AboutRequest(userId),
-            "/my_channels" => new GetChannelsRequest(userId, 1),
+            Routes.Menu => new GetMenuRequest(userId),
+            Routes.About => new AboutRequest(userId),
+            Routes.MyChannels => new GetChannelsRequest(userId, 1),
             _ => null
         };
     }

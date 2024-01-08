@@ -1,6 +1,7 @@
 using MediatR;
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.GetMenu;
 
@@ -17,8 +18,8 @@ public class GetMenuRequestHandler : IRequestHandler<GetMenuRequest>
     {
         var inlineKeyboard = new InlineKeyboardMarkup(new[]
         {
-            new[] { InlineKeyboardButton.WithCallbackData("Мои каналы", "/my_channels"), },
-            new[] { InlineKeyboardButton.WithCallbackData("Подписаться", "/subscribe"), },
+            new[] { InlineKeyboardButton.WithCallbackData("Мои каналы", Routes.MyChannels), },
+            new[] { InlineKeyboardButton.WithCallbackData("Подписаться", Routes.Subscribe), },
         });
         
         await _botClient.SendTextMessageAsync(

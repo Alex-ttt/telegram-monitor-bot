@@ -4,6 +4,7 @@ using Telegram.Bot.Types.Enums;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.TelegramBotClient.Extensions;
 using TelegramMonitorBot.TelegramBotClient.Navigation;
+using TelegramMonitorBot.TelegramBotClient.Navigation.Models;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Commands.RemovePhrase;
 
@@ -34,7 +35,17 @@ public class RemovePhraseRequestHandler : IRequestHandler<RemovePhraseRequest>
         var channel = await _channelUserRepository.GetChannel(channelId, cancellationToken);
         var phrases = await _channelUserRepository.GetChannelUserPhrases(channelId, chatId, cancellationToken);
 
-        var messageRequest = _botNavigationManager.GetChannelPhrasesRequest(request.CallbackQuery.Message!.Chat.Id, channel, phrases, 1);
+        MessageRequest messageRequest;
+        if (phrases.Count > 0)
+        {
+            messageRequest = _botNavigationManager.GetChannelPhrasesRequest(request.CallbackQuery.Message!.Chat.Id, channel, phrases, 1);
+        }
+        else
+        {
+            var channels = await _channelUserRepository.GetChannels(chatId, null, cancellationToken);
+            messageRequest = _botNavigationManager.GetMyChannelsMessageRequest(request.CallbackQuery.Message!.Chat.Id, channels);
+        }
+
         await _botClient.SendTextMessageRequestAsync(messageRequest, cancellationToken);
     }
 }

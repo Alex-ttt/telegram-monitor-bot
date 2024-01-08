@@ -4,15 +4,12 @@ using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
-using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
-using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
-using TelegramMonitorBot.TelegramBotClient.Routing;
+using TelegramMonitorBot.TelegramBotClient.Navigation.Routing;
 
 // ReSharper disable All
 
@@ -50,7 +47,7 @@ public class UpdateHandler : IUpdateHandler
         {
             { Message: { } message } => BotOnMessageReceived(message, cancellationToken),
             { EditedMessage: { } message } => BotOnMessageReceived(message, cancellationToken),
-            { CallbackQuery: { } callbackQuery } => BotOnCallbackQueryReceived(callbackQuery, cancellationToken),
+            { CallbackQuery: { Data: { }} callbackQuery } => BotOnCallbackQueryReceived(callbackQuery, cancellationToken),
             { InlineQuery: { } inlineQuery } => BotOnInlineQueryReceived(inlineQuery, cancellationToken),
             { ChosenInlineResult: { } chosenInlineResult } => BotOnChosenInlineResultReceived(chosenInlineResult,
                 cancellationToken),
@@ -93,7 +90,6 @@ public class UpdateHandler : IUpdateHandler
         _logger.LogInformation("The message was sent with id: {SentMessageId}", sentMessage.MessageId);
     }
 
-
     private Task<Message> SendAbout(Message message, CancellationToken cancellationToken)
     {
         return _botClient.SendTextMessageAsync(
@@ -125,8 +121,7 @@ public class UpdateHandler : IUpdateHandler
             text: $"Unrouted callback message received {callbackQuery.Data}",
             cancellationToken: cancellationToken);
     }
-
-
+    
     #region Inline Mode
 
     private async Task BotOnInlineQueryReceived(InlineQuery inlineQuery, CancellationToken cancellationToken)
@@ -266,10 +261,5 @@ public class UpdateHandler : IUpdateHandler
             text: usage,
             replyMarkup: new ReplyKeyboardRemove(),
             cancellationToken: cancellationToken);
-    }
-
-    private Pager GetDefaultChannelsPager(int currentPage)
-    {
-        return new Pager(currentPage, 5);
     }
 }

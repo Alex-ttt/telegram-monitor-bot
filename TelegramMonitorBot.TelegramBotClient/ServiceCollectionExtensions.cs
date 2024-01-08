@@ -4,7 +4,7 @@ using Telegram.Bot;
 using TelegramMonitorBot.Configuration.Options;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 using TelegramMonitorBot.TelegramBotClient.Navigation;
-using TelegramMonitorBot.TelegramBotClient.Routing;
+using TelegramMonitorBot.TelegramBotClient.Navigation.Routing;
 using TelegramMonitorBot.TelegramBotClient.Services;
 
 namespace TelegramMonitorBot.TelegramBotClient;

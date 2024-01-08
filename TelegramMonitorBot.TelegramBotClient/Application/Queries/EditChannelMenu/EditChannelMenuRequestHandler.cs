@@ -3,6 +3,8 @@ using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.TelegramBotClient.Application.Services;
+using TelegramMonitorBot.TelegramBotClient.Extensions;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMenu;
 
@@ -10,11 +12,16 @@ public class EditChannelMenuRequestHandler : IRequestHandler<EditChannelMenuRequ
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
+    private readonly BotNavigationManager _botNavigationManager;
 
-    public EditChannelMenuRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository)
+    public EditChannelMenuRequestHandler(
+        ITelegramBotClient botClient,
+        IChannelUserRepository channelUserRepository, 
+        BotNavigationManager botNavigationManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
+        _botNavigationManager = botNavigationManager;
     }
 
     public async Task Handle(EditChannelMenuRequest request, CancellationToken cancellationToken)
@@ -24,20 +31,19 @@ public class EditChannelMenuRequestHandler : IRequestHandler<EditChannelMenuRequ
         var channelId = request.ChannelId;
         if (channel is null)
         {
-            await _botClient.SendTextMessageAsync(
-                chatId,
-                "Канал не найден",
-                cancellationToken: cancellationToken);
+            var channelNotFoundMessage = _botNavigationManager.ChannelNotFound(chatId);
+            await _botClient.SendTextMessageRequestAsync(channelNotFoundMessage, cancellationToken);
+
             return;
         }
         
         var buttons = new[]
         {
-            new[] { new InlineKeyboardButton("Добавить фразы для поиска") { CallbackData = $"/add_phrases_to_{channelId}"}},
-            new[] { new InlineKeyboardButton("Удалить фразы для поиска") { CallbackData = $"/remove_phrases_{channelId}"}},
-            new[] { new InlineKeyboardButton("Отписаться") { CallbackData = $"/unsubscribe_from_{channelId}"}},
+            new[] { new InlineKeyboardButton("Добавить фразы для поиска") { CallbackData = Routes.AddPhrases(channelId)}},
+            new[] { new InlineKeyboardButton("Список фраз для поиска") { CallbackData =Routes.ShowChannelPhrases(channelId)}},
+            new[] { new InlineKeyboardButton("Отписаться") { CallbackData = Routes.UnsubscribeFrom(channelId)}},
             new[] { new InlineKeyboardButton("Перейти в канал") { Url = ChannelService.ChannelLink(channel.Name) }},
-            new[] { new InlineKeyboardButton("Назад") { CallbackData = "/my_channels" }},
+            new[] { new InlineKeyboardButton("Назад") { CallbackData = Routes.MyChannels }},
         };
         
         var keyboard = new InlineKeyboardMarkup(buttons);

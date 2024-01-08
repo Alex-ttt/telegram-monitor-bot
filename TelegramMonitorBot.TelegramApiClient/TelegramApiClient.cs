@@ -40,7 +40,7 @@ internal class TelegramApiClient : ITelegramApiClient
         {
             searchPublicChatResult = await _tdClient.SearchPublicChatAsync(channelName);
         }
-        catch (TdException ex) when (ex.Message == "USERNAME_NOT_OCCUPIED")
+        catch (TdException ex) when (ex.Message is "USERNAME_NOT_OCCUPIED" or "USERNAME_INVALID")
         {
             return null;
         }

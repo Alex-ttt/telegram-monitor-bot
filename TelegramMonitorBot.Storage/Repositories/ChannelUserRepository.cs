@@ -204,14 +204,28 @@ internal class ChannelUserRepository : IChannelUserRepository
     
     private async Task SetNewPhrases(ChannelUser channelUser, List<string> newPhrases, CancellationToken cancellationToken)
     {
-        var updateItemRequest = new UpdateItemRequest
+        UpdateItemRequest updateItemRequest;
+        if (newPhrases.Count == 0)
         {
-            TableName = DynamoDbConfig.TableName, 
-            Key = ModelsMapper.GetChannelUserKey(channelUser),
-            ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
-            ExpressionAttributeValues = new Dictionary<string, AttributeValue> { { ":newPhrases", new AttributeValue { SS = newPhrases } } },
-            UpdateExpression = "SET #phrases = :newPhrases",
-        };
+            updateItemRequest = new UpdateItemRequest
+            {
+                TableName = DynamoDbConfig.TableName, 
+                Key = ModelsMapper.GetChannelUserKey(channelUser),
+                ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
+                UpdateExpression = "REMOVE #phrases",
+            };
+        }
+        else
+        {
+            updateItemRequest = new UpdateItemRequest
+            {
+                TableName = DynamoDbConfig.TableName, 
+                Key = ModelsMapper.GetChannelUserKey(channelUser),
+                ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue> { { ":newPhrases", new AttributeValue { SS = newPhrases } } },
+                UpdateExpression = "SET #phrases = :newPhrases",
+            };
+        }
         
         await _dynamoDbClient.UpdateItemAsync(updateItemRequest, cancellationToken);
         _memoryCache.ResetChannelUserPhrases(channelUser.ChannelId, channelUser.UserId);

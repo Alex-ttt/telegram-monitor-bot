@@ -15,22 +15,23 @@ public class BotNavigationManager
             return new MessageRequest(chatId,"У вас ещё нет каналов");
         }
 
+        const string hammerAndWrench = "\ud83d\udee0"; // 🛠
         var buttons = channels
             .Select(t => new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithCallbackData( t.Name + "\t\ud83d\udee0", $"/edit_channel_{t.ChannelId}"),
+                InlineKeyboardButton.WithCallbackData( t.Name + "\t" + hammerAndWrench, Routes.EditChannel(t.ChannelId)),
             })
             .ToList();
 
         var navigationButtons = new List<InlineKeyboardButton>();
         if (channels.PageNumber > 1)
         {
-            navigationButtons.Add(InlineKeyboardButton.WithCallbackData("Назад", $"/my_channels_{channels.PageNumber - 1}"));
+            navigationButtons.Add(InlineKeyboardButton.WithCallbackData("Назад", Routes.MyChannelsPage(channels.PageNumber - 1)));
         }
         
         if(channels.PagesCount > channels.PageNumber)
         {
-            navigationButtons.Add(InlineKeyboardButton.WithCallbackData("Вперёд", $"/my_channels_{channels.PageNumber + 1}"));
+            navigationButtons.Add(InlineKeyboardButton.WithCallbackData("Вперёд", Routes.MyChannelsPage(channels.PageNumber + 1)));
         }
 
         if (navigationButtons.Count != 0)
@@ -48,7 +49,7 @@ public class BotNavigationManager
     {
         if (channel is null)
         {
-            return new MessageRequest(chatId, "Канал не найден");
+            return ChannelNotFound(chatId);
         }
 
         var channelId = channel.ChannelId;
@@ -57,8 +58,8 @@ public class BotNavigationManager
             var keyboard = new InlineKeyboardMarkup(
                 new[]
                 {
-                    new[] { InlineKeyboardButton.WithCallbackData("Добавить фразы", $"/add_phrases_to_{channelId}")},
-                    new[] { InlineKeyboardButton.WithCallbackData("Вернуться к моим каналам", "/my_channels")}
+                    new[] { InlineKeyboardButton.WithCallbackData("Добавить фразы", Routes.AddPhrases(channelId))},
+                    new[] { InlineKeyboardButton.WithCallbackData("Вернуться к моим каналам", Routes.MyChannels)}
                 });
             
             return new MessageRequest(chatId, "В данный канал еще не были добавлены фразы", keyboard);
@@ -70,27 +71,27 @@ public class BotNavigationManager
         var phrasesKeyboardButtons = pageResult
             .Select(t => new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithCallbackData(t, "/phrase_ignore"), 
-                InlineKeyboardButton.WithCallbackData("Удалить", $"/remove_phrase_{channelId}_{t}")
+                InlineKeyboardButton.WithCallbackData(t, Routes.PhraseIgnore), 
+                InlineKeyboardButton.WithCallbackData("Удалить", Routes.RemovePhrase(channelId, t))
             })
             .ToList();
         
         phrasesKeyboardButtons.Add(new List<InlineKeyboardButton>
         {
-            InlineKeyboardButton.WithCallbackData("Вернуться к каналу", $"/edit_channel_{channelId}")
+            InlineKeyboardButton.WithCallbackData("Вернуться к каналу", Routes.EditChannel(channelId))
         });
 
         var additionalButtons = new List<InlineKeyboardButton>();
         if (pager.Page > 1)
         {
             additionalButtons.Add(
-                InlineKeyboardButton.WithCallbackData("Назад", $"/remove_phrases_{channelId}_{pager.Page - 1}"));
+                InlineKeyboardButton.WithCallbackData("Назад", Routes.ShowChannelPhrases(channelId, pager.Page - 1)));
         }
 
         if (pageResult.PageNumber < pageResult.PagesCount)
         {
             additionalButtons.Add(
-                InlineKeyboardButton.WithCallbackData("Вперёд", $"/remove_phrases_{channelId}_{pager.Page + 1}"));
+                InlineKeyboardButton.WithCallbackData("Вперёд", Routes.ShowChannelPhrases(channelId, pager.Page + 1)));
         }
 
         if (additionalButtons.Count is > 0)
@@ -100,5 +101,41 @@ public class BotNavigationManager
 
         var phrasesKeyboard = new InlineKeyboardMarkup(phrasesKeyboardButtons);
         return new MessageRequest(chatId, $"Список фраз для канала @{channel.Name}", phrasesKeyboard);
+    }
+
+    public MessageRequest ChannelNotFound(long chatId)
+    {
+        return new MessageRequest(chatId, "Канал не найден");
+    }
+
+    public MessageRequest AlreadySubscribed(long chatId, string channelName)
+    {
+        return new MessageRequest(chatId, $"Подписка на канал @{channelName} уже существует");
+    }
+    
+    public MessageRequest ChannelAdded(long chatId, string channelName)
+    {
+        var keyboardMarkup = new InlineKeyboardMarkup(
+            new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData($"Добавить другой канал", Routes.Subscribe)},
+                new[] { InlineKeyboardButton.WithCallbackData("К списку каналов", Routes.MyChannels)}
+            });
+        return new MessageRequest(chatId, $"Канал @{channelName} добавлен", keyboardMarkup);
+    }
+
+    public MessageRequest AskUnsubscribeFromChannel(long chatId, long channelId, string channelName)
+    {
+        var keyboardMarkup = new InlineKeyboardMarkup(
+            new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData($"Отписаться от канала @{channelName}", Routes.AcceptUnsubscribeFrom(channelId))},
+                new[] { InlineKeyboardButton.WithCallbackData("Отменить", Routes.MyChannels)}
+            });
+        
+        return new MessageRequest(
+            chatId,
+            $"Вы уверены, что хотите отписаться от канала @{channelName}? \nВсе добавленные фразы для канала будут удалены безвозвратно.",
+            keyboardMarkup);
     }
 }
