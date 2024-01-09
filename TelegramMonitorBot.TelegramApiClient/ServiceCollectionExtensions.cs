@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
         
         var tdClient = tdClientBuilder.GetLoggedInTdClient(CancellationToken.None).Result;
         services.AddSingleton(tdClient);
-        services.AddScoped<ITelegramApiClient, TelegramApiClient>(t => new TelegramApiClient(tdClient));
+        services.AddScoped<ITelegramApiClient, TelegramApiClient>(_ => new TelegramApiClient(tdClient));
         return services;
     }
 }

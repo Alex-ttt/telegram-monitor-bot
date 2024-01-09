@@ -5,7 +5,7 @@ using static  TelegramMonitorBot.Storage.DynamoDbConfig;
 
 namespace TelegramMonitorBot.Storage.Mapping;
 
-internal static class ModelsMapper
+internal static class Mapper
 {
     internal const string ChannelIdPrefix = "channel#";
     internal const string UserIdPrefix = "user#";
@@ -14,7 +14,6 @@ internal static class ModelsMapper
     
     internal static string ChannelIdToKeyValue(long channelId) => $"{ChannelIdPrefix}{channelId}";
     
-
     internal static Dictionary<string, AttributeValue> ToDictionary(this User user)
     {
         var key = UserIdToKeyValue(user.UserId);
@@ -96,7 +95,8 @@ internal static class ModelsMapper
     
     internal static Dictionary<string, AttributeValue> GetChannelUserKey(long channelId, long userId)
     {
-        return new() {
+        return new Dictionary<string, AttributeValue>
+        {
             [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
             [SortKeyName] = new() { S = UserIdToKeyValue(userId) },
         };
@@ -104,7 +104,8 @@ internal static class ModelsMapper
 
     internal static Dictionary<string, AttributeValue> GetChannelKey(long channelId)
     {
-        return new() {
+        return new Dictionary<string, AttributeValue>
+        {
             [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
             [SortKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
         }; 

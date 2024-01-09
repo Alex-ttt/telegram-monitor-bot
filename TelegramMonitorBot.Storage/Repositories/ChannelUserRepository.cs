@@ -38,7 +38,7 @@ internal class ChannelUserRepository : IChannelUserRepository
         var getChannelRequest = new GetItemRequest
         {
             TableName = DynamoDbConfig.TableName,
-            Key = ModelsMapper.GetChannelKey(channelId)
+            Key = Mapper.GetChannelKey(channelId)
         };
         
         var channelResult = await _dynamoDbClient.GetItemAsync(getChannelRequest, cancellationToken);
@@ -77,7 +77,7 @@ internal class ChannelUserRepository : IChannelUserRepository
 
     public async Task<PageResult<Channel>> GetChannels(long userId, Pager? pager, CancellationToken cancellationToken = default)
     {
-        if(_memoryCache.GetUserChannels(userId) is {} cached)
+        if(_memoryCache.GetUserChannels(userId) is { } cached)
         {
             return GetPageResult(cached, pager);
         }
@@ -89,8 +89,8 @@ internal class ChannelUserRepository : IChannelUserRepository
             KeyConditionExpression = $"{DynamoDbConfig.SortKeyName} = :user_id_value and begins_with({DynamoDbConfig.PartitionKeyName}, :channel_prefix)",
             ExpressionAttributeValues = new Dictionary<string, AttributeValue>
             {
-                { ":user_id_value", new AttributeValue { S = ModelsMapper.UserIdToKeyValue(userId) } },
-                { ":channel_prefix", new AttributeValue { S = ModelsMapper.ChannelIdPrefix } }
+                { ":user_id_value", new AttributeValue { S = Mapper.UserIdToKeyValue(userId) } },
+                { ":channel_prefix", new AttributeValue { S = Mapper.ChannelIdPrefix } }
             },
             ProjectionExpression = $"{DynamoDbConfig.PartitionKeyName}, {DynamoDbConfig.Attributes.ChannelUserCreated}"
         };
@@ -119,7 +119,8 @@ internal class ChannelUserRepository : IChannelUserRepository
             }
         };
 
-        var userSubscribedToChannelDate = userChannelsResponse.Items
+        var userSubscribedToChannelDate = 
+            userChannelsResponse.Items
                 .ToDictionary(
                     t => t[DynamoDbConfig.PartitionKeyName].S,
                     t => DateTimeOffset.Parse(t[DynamoDbConfig.Attributes.ChannelCreated].S));
@@ -194,7 +195,7 @@ internal class ChannelUserRepository : IChannelUserRepository
         var deleteItemRequest = new DeleteItemRequest
         {
             TableName = DynamoDbConfig.TableName,
-            Key = ModelsMapper.GetChannelUserKey(channelId, userId)
+            Key = Mapper.GetChannelUserKey(channelId, userId)
         };
         
         _memoryCache.ResetUserChannels(userId);
@@ -210,7 +211,7 @@ internal class ChannelUserRepository : IChannelUserRepository
             updateItemRequest = new UpdateItemRequest
             {
                 TableName = DynamoDbConfig.TableName, 
-                Key = ModelsMapper.GetChannelUserKey(channelUser),
+                Key = Mapper.GetChannelUserKey(channelUser),
                 ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
                 UpdateExpression = "REMOVE #phrases",
             };
@@ -220,7 +221,7 @@ internal class ChannelUserRepository : IChannelUserRepository
             updateItemRequest = new UpdateItemRequest
             {
                 TableName = DynamoDbConfig.TableName, 
-                Key = ModelsMapper.GetChannelUserKey(channelUser),
+                Key = Mapper.GetChannelUserKey(channelUser),
                 ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue> { { ":newPhrases", new AttributeValue { SS = newPhrases } } },
                 UpdateExpression = "SET #phrases = :newPhrases",
@@ -236,7 +237,7 @@ internal class ChannelUserRepository : IChannelUserRepository
         var getChannelUserRequest = new GetItemRequest
         {
             TableName = DynamoDbConfig.TableName,
-            Key = ModelsMapper.GetChannelUserKey(channelId, userId),
+            Key = Mapper.GetChannelUserKey(channelId, userId),
         };
         
         var channelUserResult = await _dynamoDbClient.GetItemAsync(getChannelUserRequest, cancellationToken);
@@ -267,24 +268,11 @@ internal class ChannelUserRepository : IChannelUserRepository
         return true;
     }
     
-    private async Task PutItem(Dictionary<string, AttributeValue> item, CancellationToken cancellationToken)
-    {
-        var channelRequest = new PutItemRequest
-        {
-            TableName = DynamoDbConfig.TableName,
-            Item = item,
-        };
-
-        await _dynamoDbClient.PutItemAsync(channelRequest, cancellationToken);
-    }
-    
     private static PageResult<TItem> GetPageResult<TItem>(ICollection<TItem> items, Pager? pager)
     {
-        if (pager is null)
-        {
-            return new PageResult<TItem>(items, 1, 1);
-        }
-        
-        return new PageResult<TItem>(items, pager);
+        return 
+            pager is null 
+                ? new PageResult<TItem>(items, new Pager()) 
+                : new PageResult<TItem>(items, pager);
     }
 }
