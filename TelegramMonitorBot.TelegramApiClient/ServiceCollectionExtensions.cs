@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace TelegramMonitorBot.TelegramApiClient;
 
@@ -13,12 +12,11 @@ public static class ServiceCollectionExtensions
         using var scope = services.BuildServiceProvider().CreateScope();
         var provider = scope.ServiceProvider;
         
-        var logger = provider.GetRequiredService<ILogger<TelegramApiClient>>();
         var tdClientBuilder = provider.GetRequiredService<TdClientBuilder>();
         
         var tdClient = tdClientBuilder.GetLoggedInTdClient(CancellationToken.None).Result;
         services.AddSingleton(tdClient);
-        services.AddScoped<ITelegramApiClient, TelegramApiClient>(t => new TelegramApiClient(tdClient, logger));
+        services.AddScoped<ITelegramApiClient, TelegramApiClient>(t => new TelegramApiClient(tdClient));
         return services;
     }
 }

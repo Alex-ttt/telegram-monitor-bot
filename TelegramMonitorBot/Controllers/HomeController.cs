@@ -11,10 +11,8 @@ public class HomeController : ControllerBase
     private readonly ITelegramApiClient _client;
     
     [HttpGet("{name}")]
-    public async Task<string> SayHello(string name)
+    public string SayHello(string name)
     {
-
-        await _client.DoStuff();
         return $"Hello, {name}!";
     }
 }
