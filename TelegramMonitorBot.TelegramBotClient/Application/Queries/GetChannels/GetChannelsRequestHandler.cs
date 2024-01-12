@@ -14,18 +14,15 @@ public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
-    private readonly BotNavigationManager _botNavigationManager;
     private readonly ChatContextManager _chatContextManager;
 
     public GetChannelsRequestHandler(
         ITelegramBotClient botClient, 
         IChannelUserRepository channelUserRepository, 
-        BotNavigationManager botNavigationManager,
         ChatContextManager chatContextManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
-        _botNavigationManager = botNavigationManager;
         _chatContextManager = chatContextManager;
     }
 
@@ -33,7 +30,7 @@ public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
     {
         var channels = await GetChannels(request, cancellationToken);
 
-        var myChannelsRequest = _botNavigationManager.GetMyChannelsMessageRequest(request.ChatId, channels);
+        var myChannelsRequest = BotMessageBuilder.GetMyChannelsMessageRequest(request.ChatId, channels);
         await _botClient.SendTextMessageRequestAsync(myChannelsRequest, cancellationToken);
         _chatContextManager.OnChannelsList(request.ChatId);
     }

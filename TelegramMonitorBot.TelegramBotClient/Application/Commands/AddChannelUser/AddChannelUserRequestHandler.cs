@@ -15,20 +15,17 @@ public class AddChannelUserRequestHandler : IRequestHandler<AddChannelUserReques
     private readonly IChannelUserRepository _channelUserRepository;
     private readonly ITelegramApiClient _telegramApiClient;
     private readonly ChatContextManager _chatContextManager;
-    private readonly BotNavigationManager _botNavigationManager;
 
     public AddChannelUserRequestHandler(
         ITelegramBotClient botClient, 
         IChannelUserRepository channelUserRepository, 
         ITelegramApiClient telegramApiClient, 
-        ChatContextManager chatContextManager,
-        BotNavigationManager botNavigationManager)
+        ChatContextManager chatContextManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
         _telegramApiClient = telegramApiClient;
         _chatContextManager = chatContextManager;
-        _botNavigationManager = botNavigationManager;
     }
 
     public async Task Handle(AddChannelUserRequest request, CancellationToken cancellationToken)
@@ -59,19 +56,19 @@ public class AddChannelUserRequestHandler : IRequestHandler<AddChannelUserReques
 
         _chatContextManager.OnAddedChannel(request.UserId);
 
-        var channelAddedMessage = _botNavigationManager.ChannelAdded(request.UserId, channel.Name);
+        var channelAddedMessage = BotMessageBuilder.ChannelAdded(request.UserId, channel.Name);
         await _botClient.SendTextMessageRequestAsync(channelAddedMessage, cancellationToken);
     }
 
     private async Task SendChannelNotFound(long chatId, CancellationToken cancellationToken)
     {
-        var channelNotFoundMessage = _botNavigationManager.ChannelNotFound(chatId);
+        var channelNotFoundMessage = BotMessageBuilder.ChannelNotFound(chatId);
         await _botClient.SendTextMessageRequestAsync(channelNotFoundMessage, cancellationToken);
     }
 
     private async Task SendAlreadySubscribed(long chatId, string channelName, CancellationToken cancellationToken)
     {
-        var alreadySubscribedMessage = _botNavigationManager.AlreadySubscribed(chatId, channelName);
+        var alreadySubscribedMessage = BotMessageBuilder.AlreadySubscribed(chatId, channelName);
         await _botClient.SendTextMessageRequestAsync(alreadySubscribedMessage, cancellationToken);
     }
 }

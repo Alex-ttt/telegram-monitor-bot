@@ -1,6 +1,8 @@
 using MediatR;
 using Telegram.Bot;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
+using TelegramMonitorBot.TelegramBotClient.Extensions;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Queries.About;
 
@@ -20,9 +22,7 @@ public class AboutRequestHandler : IRequestHandler<AboutRequest>
     public async Task Handle(AboutRequest request, CancellationToken cancellationToken)
     {
         _contextManager.OnAbout(request.ChatId);
-        await _botClient.SendTextMessageAsync(
-            request.ChatId,
-            "Этот бот создан для того, чтобы помочь отслеживать появление ключевых слов в публичных каналах телеграма",
-            cancellationToken: cancellationToken);
+        var aboutMessage = BotMessageBuilder.GetAbout(request.ChatId);
+        await _botClient.SendTextMessageRequestAsync(aboutMessage, cancellationToken);
     }
 }

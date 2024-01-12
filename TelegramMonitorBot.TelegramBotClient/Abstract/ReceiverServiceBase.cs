@@ -18,7 +18,7 @@ public abstract class ReceiverServiceBase<TUpdateHandler> : IReceiverService
     
     private static readonly ReceiverOptions ReceiverOptions = new()
     {
-        AllowedUpdates = [UpdateType.Message, UpdateType.CallbackQuery],
+        AllowedUpdates = [UpdateType.Message, UpdateType.CallbackQuery, UpdateType.InlineQuery],
         ThrowPendingUpdates = true,
     };
 

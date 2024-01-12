@@ -6,9 +6,9 @@ using TelegramMonitorBot.TelegramBotClient.Navigation.Models;
 
 namespace TelegramMonitorBot.TelegramBotClient.Navigation;
 
-public class BotNavigationManager
+public static class BotMessageBuilder
 {
-    public MessageRequest GetMyChannelsMessageRequest(long chatId, PageResult<Channel> channels)
+    public static MessageRequest GetMyChannelsMessageRequest(long chatId, PageResult<Channel> channels)
     {
         if (channels.Any() is false)
         {
@@ -45,7 +45,7 @@ public class BotNavigationManager
         return request;
     }
 
-    public MessageRequest GetChannelPhrasesRequest(long chatId, Channel? channel, ICollection<string> phrases, int page)
+    public static MessageRequest GetChannelPhrasesRequest(long chatId, Channel? channel, ICollection<string> phrases, int page)
     {
         if (channel is null)
         {
@@ -103,17 +103,18 @@ public class BotNavigationManager
         return new MessageRequest(chatId, $"Список фраз для канала @{channel.Name}", phrasesKeyboard);
     }
 
-    public MessageRequest ChannelNotFound(long chatId)
+    public static MessageRequest ChannelNotFound(long chatId)
     {
-        return new MessageRequest(chatId, "Канал не найден");
+        return new MessageRequest(chatId, "Канал не найден.");
     }
+    
 
-    public MessageRequest AlreadySubscribed(long chatId, string channelName)
+    public static MessageRequest AlreadySubscribed(long chatId, string channelName)
     {
         return new MessageRequest(chatId, $"Подписка на канал @{channelName} уже существует");
     }
     
-    public MessageRequest ChannelAdded(long chatId, string channelName)
+    public static MessageRequest ChannelAdded(long chatId, string channelName)
     {
         var keyboardMarkup = new InlineKeyboardMarkup(
             new[]
@@ -124,7 +125,7 @@ public class BotNavigationManager
         return new MessageRequest(chatId, $"Канал @{channelName} добавлен", keyboardMarkup);
     }
 
-    public MessageRequest AskUnsubscribeFromChannel(long chatId, long channelId, string channelName)
+    public static MessageRequest AskUnsubscribeFromChannel(long chatId, long channelId, string channelName)
     {
         var keyboardMarkup = new InlineKeyboardMarkup(
             new[]
@@ -136,6 +137,86 @@ public class BotNavigationManager
         return new MessageRequest(
             chatId,
             $"Вы уверены, что хотите отписаться от канала @{channelName}? \nВсе добавленные фразы для канала будут удалены безвозвратно.",
+            keyboardMarkup);
+    }
+
+    public static MessageRequest GetAbout(long chatId)
+    {
+        return new MessageRequest(
+            chatId,
+            "Этот бот создан для того, чтобы помочь отслеживать появление ключевых слов в публичных каналах телеграма");
+    }
+
+    public static MessageRequest GetInputChannelNameMessage(long chatId)
+    {
+        return new MessageRequest(
+            chatId,
+            "Введите короткие имя (начинается с @) или ссылку на канал, чтобы подписаться на него");
+    }
+
+    public static MessageRequest GetChannelSettingsMessage(long chatId, Channel channel)
+    {
+        var buttons = new[]
+        {
+            new[] { new InlineKeyboardButton("Добавить фразы для поиска") { CallbackData = Routes.AddPhrases(channel.ChannelId)}},
+            new[] { new InlineKeyboardButton("Список фраз для поиска") { CallbackData = Routes.ShowChannelPhrases(channel.ChannelId)}},
+            new[] { new InlineKeyboardButton("Отписаться") { CallbackData = Routes.UnsubscribeFrom(channel.ChannelId)}},
+            new[] { new InlineKeyboardButton("Перейти в канал") { Url = ChannelService.ChannelLink(channel.Name) }},
+            new[] { new InlineKeyboardButton("Назад") { CallbackData = Routes.MyChannels }},
+        };
+        
+        var keyboard = new InlineKeyboardMarkup(buttons);
+
+        return new MessageRequest(chatId, $"Настройка канала @{channel.Name}", keyboard);
+    }
+
+    public static MessageRequest GetUnrecognizedRequestMessage(long chatId)
+    {
+        return new MessageRequest(
+            chatId,
+            $"Не удалось распознать текущую команду. Используйте {Routes.Menu}, чтобы перейти в главное меню");
+    }
+
+    public static MessageRequest GetPhrasesWereAddedMessage(long chatId, Channel channel)
+    {
+        var keyboard = new InlineKeyboardMarkup(
+            new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData("Добавить другие фразы", Routes.AddPhrases(channel.ChannelId)), },
+                new[] { InlineKeyboardButton.WithCallbackData($"Назад к {channel.Name}", Routes.EditChannel(channel.ChannelId)), },
+                new[] { InlineKeyboardButton.WithCallbackData("Назад к моим каналам", Routes.MyChannels), },
+            });
+        
+        return new MessageRequest(chatId, "Фразы успешно добавлены", keyboard);
+    }
+
+    public static MessageRequest GetPhrasesTooLongMessage(long chatId, int lenLimit)
+    {
+        return new MessageRequest(chatId, $"Длина каждой фразы не должна превышать {lenLimit} символов");
+    }
+
+    public static MessageRequest GetMenuMessage(long chatId)
+    {
+        var inlineKeyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[] { InlineKeyboardButton.WithCallbackData("Мои каналы", Routes.MyChannels), },
+            new[] { InlineKeyboardButton.WithCallbackData("Подписаться", Routes.Subscribe), },
+        });
+
+        return new MessageRequest(chatId, "Управление каналами", inlineKeyboard);
+    }
+
+    public static MessageRequest GetPrepareChannelsForPhraseAddingMessage(long chatId, Channel channel)
+    {
+        var keyboardMarkup = new InlineKeyboardMarkup(
+            new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData("Назад к моим каналам", Routes.MyChannels), },
+            });
+
+        return new MessageRequest(
+            chatId,
+            $"Введите фразы для поиска по каналу @{channel.Name}. Можно написать несколько фраз - каждую с новой строки",
             keyboardMarkup);
     }
 }

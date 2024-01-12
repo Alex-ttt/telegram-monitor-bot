@@ -1,6 +1,8 @@
 ﻿using MediatR;
 using Telegram.Bot;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
+using TelegramMonitorBot.TelegramBotClient.Extensions;
+using TelegramMonitorBot.TelegramBotClient.Navigation;
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.Commands.TurnOnSubscribeMode;
 
@@ -20,10 +22,8 @@ public class TurnOnSubscribeModeRequestHandler : IRequestHandler<TurnOnSubscribe
     public async Task Handle(TurnOnSubscribeModeRequest request, CancellationToken cancellationToken)
     {
         var chatId = request.CallbackQuery.Message!.Chat.Id;
-        await _botClient.SendTextMessageAsync(
-            chatId,
-            "Введите короткие имя (начинается с @) или ссылку на канал, чтобы подписаться на него", 
-            cancellationToken: cancellationToken);
+        var message = BotMessageBuilder.GetInputChannelNameMessage(chatId);
+        await _botClient.SendTextMessageRequestAsync(message, cancellationToken);
         
         _contextManager.OnAddingChannel(chatId);
     }

@@ -14,18 +14,15 @@ public class AcceptUnsubscribeFromChannelRequestHandler : IRequestHandler<Accept
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
-    private readonly BotNavigationManager _botNavigationManager;
     private readonly ChatContextManager _chatContextManager;
 
     public AcceptUnsubscribeFromChannelRequestHandler(
         ITelegramBotClient botClient, 
         IChannelUserRepository channelUserRepository, 
-        BotNavigationManager botNavigationManager, 
         ChatContextManager chatContextManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
-        _botNavigationManager = botNavigationManager;
         _chatContextManager = chatContextManager;
     }
 
@@ -37,7 +34,7 @@ public class AcceptUnsubscribeFromChannelRequestHandler : IRequestHandler<Accept
         await _botClient.AnswerCallbackQueryAsync(request.CallbackQuery.Id, $"Вы успешно отписались от канала", cancellationToken: cancellationToken);
         
         var myChannels = await GetChannels(chatId, cancellationToken);
-        var messageToAnswer = _botNavigationManager.GetMyChannelsMessageRequest(chatId, myChannels);
+        var messageToAnswer = BotMessageBuilder.GetMyChannelsMessageRequest(chatId, myChannels);
         _chatContextManager.OnChannelRemoved(chatId);
         await _botClient.SendTextMessageRequestAsync(messageToAnswer, cancellationToken);
     }
