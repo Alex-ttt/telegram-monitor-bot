@@ -4,6 +4,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramBotClient.Application.Services;
+using TelegramMonitorBot.TelegramBotClient.ChatContext;
 using TelegramMonitorBot.TelegramBotClient.Extensions;
 using TelegramMonitorBot.TelegramBotClient.Navigation;
 
@@ -14,15 +15,18 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
     private readonly BotNavigationManager _botNavigationManager;
+    private readonly ChatContextManager _contextManager;
 
     public GetChannelPhrasesRequestHandler(
         ITelegramBotClient botClient,
         IChannelUserRepository channelUserRepository, 
-        BotNavigationManager botNavigationManager)
+        BotNavigationManager botNavigationManager, 
+        ChatContextManager contextManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
         _botNavigationManager = botNavigationManager;
+        _contextManager = contextManager;
     }
 
     public async Task Handle(GetChannelPhrasesRequest request, CancellationToken cancellationToken)
@@ -46,6 +50,8 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
         }
 
         var phrasesKeyboard = GetPhrasesKeyboardMarkup(request, phrases, channelId);
+
+        _contextManager.OnGetChannelPhrases(chatId);
         
         await _botClient.SendTextMessageAsync(
             chatId,
@@ -70,8 +76,8 @@ public class GetChannelPhrasesRequestHandler : IRequestHandler<GetChannelPhrases
 
         phrasesKeyboardButtons.AddRange(new List<InlineKeyboardButton>[]
         {
-            new() { InlineKeyboardButton.WithCallbackData("Добавить другие фразы", Routes.AddPhrases(channelId))},
-            new() { InlineKeyboardButton.WithCallbackData("Вернуться к каналу", Routes.EditChannel(channelId))},
+            [InlineKeyboardButton.WithCallbackData("Добавить другие фразы", Routes.AddPhrases(channelId))],
+            [InlineKeyboardButton.WithCallbackData("Вернуться к каналу", Routes.EditChannel(channelId))],
         });
 
         var additionalButtons = new List<InlineKeyboardButton>

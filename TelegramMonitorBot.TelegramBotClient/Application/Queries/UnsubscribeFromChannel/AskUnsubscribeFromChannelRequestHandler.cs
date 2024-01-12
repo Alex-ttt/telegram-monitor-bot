@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Telegram.Bot;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
+using TelegramMonitorBot.TelegramBotClient.ChatContext;
 using TelegramMonitorBot.TelegramBotClient.Extensions;
 using TelegramMonitorBot.TelegramBotClient.Navigation;
 
@@ -11,12 +12,18 @@ public class AskUnsubscribeFromChannelRequestHandler : IRequestHandler<AskUnsubs
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
     private readonly BotNavigationManager _botNavigationManager;
+    private readonly ChatContextManager _chatContextManager;
 
-    public AskUnsubscribeFromChannelRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository, BotNavigationManager botNavigationManager)
+    public AskUnsubscribeFromChannelRequestHandler(
+        ITelegramBotClient botClient,
+        IChannelUserRepository channelUserRepository,
+        BotNavigationManager botNavigationManager, 
+        ChatContextManager chatContextManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
         _botNavigationManager = botNavigationManager;
+        _chatContextManager = chatContextManager;
     }
 
     public async Task Handle(AskUnsubscribeFromChannelRequest request, CancellationToken cancellationToken)
@@ -32,6 +39,8 @@ public class AskUnsubscribeFromChannelRequestHandler : IRequestHandler<AskUnsubs
         }
         
         var askUnsubscribeMessage = _botNavigationManager.AskUnsubscribeFromChannel(chatId, request.ChannelId, channel.Name);
+
+        _chatContextManager.OnAskUnsubscribe(chatId, request.ChannelId);
         await _botClient.SendTextMessageRequestAsync(askUnsubscribeMessage, cancellationToken);
     }
 }

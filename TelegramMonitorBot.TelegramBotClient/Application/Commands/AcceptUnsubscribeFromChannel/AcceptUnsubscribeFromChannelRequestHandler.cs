@@ -4,6 +4,7 @@ using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.TelegramBotClient.Application.Services;
+using TelegramMonitorBot.TelegramBotClient.ChatContext;
 using TelegramMonitorBot.TelegramBotClient.Extensions;
 using TelegramMonitorBot.TelegramBotClient.Navigation;
 
@@ -14,24 +15,30 @@ public class AcceptUnsubscribeFromChannelRequestHandler : IRequestHandler<Accept
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
     private readonly BotNavigationManager _botNavigationManager;
+    private readonly ChatContextManager _chatContextManager;
 
-    public AcceptUnsubscribeFromChannelRequestHandler(ITelegramBotClient botClient, IChannelUserRepository channelUserRepository, BotNavigationManager botNavigationManager)
+    public AcceptUnsubscribeFromChannelRequestHandler(
+        ITelegramBotClient botClient, 
+        IChannelUserRepository channelUserRepository, 
+        BotNavigationManager botNavigationManager, 
+        ChatContextManager chatContextManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
         _botNavigationManager = botNavigationManager;
+        _chatContextManager = chatContextManager;
     }
 
     public async Task Handle(AcceptUnsubscribeFromChannelRequest request, CancellationToken cancellationToken)
     {
-        
-        var message = request.CallbackQuery.Message!;
-        await _channelUserRepository.RemoveChannelUser(request.ChannelId, message.Chat.Id, cancellationToken);
+        var chatId = request.CallbackQuery.Message!.Chat.Id;
+        await _channelUserRepository.RemoveChannelUser(request.ChannelId, chatId, cancellationToken);
         
         await _botClient.AnswerCallbackQueryAsync(request.CallbackQuery.Id, $"Вы успешно отписались от канала", cancellationToken: cancellationToken);
         
-        var myChannels = await GetChannels(message.Chat.Id, cancellationToken);
-        var messageToAnswer = _botNavigationManager.GetMyChannelsMessageRequest(message.Chat.Id, myChannels);
+        var myChannels = await GetChannels(chatId, cancellationToken);
+        var messageToAnswer = _botNavigationManager.GetMyChannelsMessageRequest(chatId, myChannels);
+        _chatContextManager.OnChannelRemoved(chatId);
         await _botClient.SendTextMessageRequestAsync(messageToAnswer, cancellationToken);
     }
     

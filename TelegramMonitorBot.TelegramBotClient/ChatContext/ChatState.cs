@@ -1,14 +1,18 @@
 ﻿namespace TelegramMonitorBot.TelegramBotClient.ChatContext;
 
+/// <summary>
+/// Represents various states in the chat with a precise user
+/// </summary>
 public enum ChatState
 {
     MainMenu,
+    ChannelsList,
+    About,
     WaitingForChannelToSubscribe,
-    WaitingForChannelToUnsubscribe,
-    WaitingForChannelToUnsubscribeConfirmation, // Think about using it later
     Subscribed,
-    Unsubscribed,
+    AskUnsubscribe,
+    EditChannel,
     WaitingForPhaseToAdd,
-    WaitingForPhaseToRemove,
-    PhrasesAdded
+    PhrasesAdded,
+    RetrieveChannelPhrases
 }

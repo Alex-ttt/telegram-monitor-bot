@@ -52,7 +52,5 @@ public class PrepareChannelForPhrasesAddingRequestHandler : IRequestHandler<Prep
             cancellationToken: cancellationToken);
 
         _chatContextManager.OnPhrasesAdding(chatId, channel.ChannelId);
-
-        // TODO handle context states
     }
 }

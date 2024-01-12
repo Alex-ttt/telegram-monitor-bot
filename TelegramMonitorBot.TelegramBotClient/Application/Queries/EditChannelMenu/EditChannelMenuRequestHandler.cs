@@ -3,6 +3,7 @@ using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.TelegramBotClient.Application.Services;
+using TelegramMonitorBot.TelegramBotClient.ChatContext;
 using TelegramMonitorBot.TelegramBotClient.Extensions;
 using TelegramMonitorBot.TelegramBotClient.Navigation;
 
@@ -13,15 +14,18 @@ public class EditChannelMenuRequestHandler : IRequestHandler<EditChannelMenuRequ
     private readonly ITelegramBotClient _botClient;
     private readonly IChannelUserRepository _channelUserRepository;
     private readonly BotNavigationManager _botNavigationManager;
+    private readonly ChatContextManager _contextManager;
 
     public EditChannelMenuRequestHandler(
         ITelegramBotClient botClient,
         IChannelUserRepository channelUserRepository, 
-        BotNavigationManager botNavigationManager)
+        BotNavigationManager botNavigationManager, 
+        ChatContextManager contextManager)
     {
         _botClient = botClient;
         _channelUserRepository = channelUserRepository;
         _botNavigationManager = botNavigationManager;
+        _contextManager = contextManager;
     }
 
     public async Task Handle(EditChannelMenuRequest request, CancellationToken cancellationToken)
@@ -47,6 +51,8 @@ public class EditChannelMenuRequestHandler : IRequestHandler<EditChannelMenuRequ
         };
         
         var keyboard = new InlineKeyboardMarkup(buttons);
+
+        _contextManager.OnEditChannel(chatId, channelId);
         
         await  _botClient.SendTextMessageAsync(
             chatId,

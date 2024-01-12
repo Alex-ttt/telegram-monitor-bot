@@ -9,7 +9,9 @@ public class TurnOnSubscribeModeRequestHandler : IRequestHandler<TurnOnSubscribe
     private readonly ITelegramBotClient _botClient;
     private readonly ChatContextManager _contextManager;
 
-    public TurnOnSubscribeModeRequestHandler(ITelegramBotClient botClient, ChatContextManager contextManager)
+    public TurnOnSubscribeModeRequestHandler(
+        ITelegramBotClient botClient, 
+        ChatContextManager contextManager)
     {
         _botClient = botClient;
         _contextManager = contextManager;

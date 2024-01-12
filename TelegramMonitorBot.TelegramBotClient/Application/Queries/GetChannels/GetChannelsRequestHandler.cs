@@ -35,7 +35,7 @@ public class GetChannelsRequestHandler : IRequestHandler<GetChannelsRequest>
 
         var myChannelsRequest = _botNavigationManager.GetMyChannelsMessageRequest(request.ChatId, channels);
         await _botClient.SendTextMessageRequestAsync(myChannelsRequest, cancellationToken);
-        _chatContextManager.OnMainMenu(request.ChatId);
+        _chatContextManager.OnChannelsList(request.ChatId);
     }
 
     private async Task<PageResult<Channel>> GetChannels(GetChannelsRequest request, CancellationToken cancellationToken)

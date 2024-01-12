@@ -15,6 +15,12 @@ public abstract class ReceiverServiceBase<TUpdateHandler> : IReceiverService
     private readonly ITelegramBotClient _botClient;
     private readonly IUpdateHandler _updateHandler;
     private readonly ILogger _logger;
+    
+    private static readonly ReceiverOptions ReceiverOptions = new()
+    {
+        AllowedUpdates = [UpdateType.Message, UpdateType.CallbackQuery],
+        ThrowPendingUpdates = true,
+    };
 
     internal ReceiverServiceBase(
         ITelegramBotClient botClient,
@@ -33,20 +39,13 @@ public abstract class ReceiverServiceBase<TUpdateHandler> : IReceiverService
     /// <returns></returns>
     public async Task ReceiveAsync(CancellationToken stoppingToken)
     {
-        // ToDo: we can inject ReceiverOptions through IOptions container
-        var receiverOptions = new ReceiverOptions
-        {
-            AllowedUpdates = Array.Empty<UpdateType>(),
-            ThrowPendingUpdates = true,
-        };
-
         var me = await _botClient.GetMeAsync(stoppingToken);
         _logger.LogInformation("Start receiving updates for {BotName}", me.Username ?? "My Awesome Bot");
 
         // Start receiving updates
         await _botClient.ReceiveAsync(
             updateHandler: _updateHandler,
-            receiverOptions: receiverOptions,
+            receiverOptions: ReceiverOptions,
             cancellationToken: stoppingToken);
     }
 }

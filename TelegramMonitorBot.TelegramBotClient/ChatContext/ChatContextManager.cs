@@ -2,7 +2,7 @@
 
 public class ChatContextManager
 {
-    private readonly Dictionary<long, ChatContext> _userContexts = new ();
+    private readonly Dictionary<long, ChatContext> _userContexts = new();
 
     public ChatContext GetCurrentContext(long chatId)
     {
@@ -37,7 +37,7 @@ public class ChatContextManager
     public void OnMainMenu(long chatId)
     {
         var userContext = GetChatContext(chatId);
-        userContext.Move(ChatState.MainMenu, UserAction.Navigation);
+        userContext.Move(ChatState.MainMenu, UserAction.MainMenu);
     }
 
     private ChatContext GetChatContext(long chatId)
@@ -52,6 +52,49 @@ public class ChatContextManager
 
         return userContext;
     }
+
+    public void OnChannelRemoved(long chatId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.ChannelsList, UserAction.UnsubscribeFromChannel);
+    }
+
+    public void OnPhraseRemoved(long chatId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.ChannelsList, UserAction.PhraseRemoved);
+    }
+
+    public void OnAbout(long chatId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.About, UserAction.About);
+    }
+
+    public void OnEditChannel(long chatId, long channelId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.EditChannel, UserAction.EditChannel, channelId);
+    }
+
+    public void OnGetChannelPhrases(long chatId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.RetrieveChannelPhrases, UserAction.RetrieveChannelPhrases);
+    }
+
+    public void OnChannelsList(long chatId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.ChannelsList, UserAction.ChannelsList);
+    }
+
+    public void OnAskUnsubscribe(long chatId, long channelId)
+    {
+        var userContext = GetChatContext(chatId);
+        userContext.Move(ChatState.AskUnsubscribe, UserAction.AskUnsubscribeFromChannel, channelId);
+        
+    }
 }
 
 public class ChatContext
@@ -59,7 +102,7 @@ public class ChatContext
 
     private readonly List<UserAction> _userActions = new();
 
-    public long? ChannelId = null;
+    public long? ChannelId;
 
     public ChatContext(long chatId)
     {
