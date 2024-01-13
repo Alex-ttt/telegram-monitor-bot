@@ -49,9 +49,14 @@ internal static class Mapper
             [Attributes.ChannelUserCreated] = new() {S = channelUser.Created.ToString()},
         };
 
-        if (channelUser.Phrases?.Count is > 0)
+        if (channelUser.Phrases is { Count: > 0} phrases)
         {
-            result.Add(Attributes.ChannelUserPhrases, new AttributeValue { SS = channelUser.Phrases});
+            result.Add(Attributes.ChannelUserPhrases, new AttributeValue { SS = phrases});
+        }
+        
+        if(channelUser.LastMessage is { } lastMessage)
+        {
+            result.Add(Attributes.ChannelUserLastMessage, new AttributeValue { N = lastMessage.ToString()});
         }
 
         return result;
@@ -59,8 +64,7 @@ internal static class Mapper
 
     internal static Channel ToChannel(this Dictionary<string, AttributeValue> dictionary)
     {
-        var channelIdKey = dictionary[PartitionKeyName].S;
-        var channelId = long.Parse(channelIdKey[ChannelIdPrefix.Length..]);
+        var channelId = ParseChannelKey(dictionary[PartitionKeyName].S);
         
         var name = dictionary[Attributes.ChannelName].S;
         var created = DateTimeOffset.Parse(dictionary[Attributes.ChannelCreated].S);
@@ -73,8 +77,7 @@ internal static class Mapper
 
     internal static ChannelUser ToChannelUser(this Dictionary<string, AttributeValue> dictionary)
     {
-        var channelIdKey = dictionary[PartitionKeyName].S;
-        var channelId = long.Parse(channelIdKey[ChannelIdPrefix.Length..]);
+        var channelId = ParseChannelKey(dictionary[PartitionKeyName].S);
         
         var userIdKey = dictionary[SortKeyName].S;
         var userId = long.Parse(userIdKey[UserIdPrefix.Length..]);
@@ -84,8 +87,14 @@ internal static class Mapper
         {
             phrases = phrasesAttribute.SS;
         }
+        
+        long? lastMessage = null;
+        if(dictionary.TryGetValue(Attributes.ChannelUserLastMessage, out var lastMessageAttribute))
+        {
+            lastMessage = long.Parse(lastMessageAttribute.N);
+        }
 
-        return new ChannelUser(channelId, userId, phrases);
+        return new ChannelUser(channelId, userId, phrases, lastMessage);
     }
 
     internal static Dictionary<string, AttributeValue> GetChannelUserKey(ChannelUser channelUser)
@@ -109,5 +118,13 @@ internal static class Mapper
             [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
             [SortKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
         }; 
+    }
+
+    internal static long ParseChannelKey(string channelKey)
+    {
+        var channelIdKey = channelKey;
+        var channelId = long.Parse(channelIdKey[ChannelIdPrefix.Length..]);
+
+        return channelId;
     }
 }

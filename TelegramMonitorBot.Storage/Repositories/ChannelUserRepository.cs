@@ -5,6 +5,7 @@ using TelegramMonitorBot.Storage.Caching;
 using TelegramMonitorBot.Storage.Mapping;
 using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
+using TelegramMonitorBot.Storage.Repositories.Models;
 
 namespace TelegramMonitorBot.Storage.Repositories;
 
@@ -63,7 +64,7 @@ internal class ChannelUserRepository : IChannelUserRepository
             PutItemIfNotExists(channel.ToDictionary(), cancellationToken),
             PutItemIfNotExists(user.ToDictionary(), cancellationToken));
         
-        var channelUser = new ChannelUser(channel, user);
+        var channelUser = new ChannelUser(channel.ChannelId, user.UserId);
         var channelUserAdded = await PutItemIfNotExists(channelUser.ToDictionary(), cancellationToken);
 
         if (channelUserAdded)
@@ -202,6 +203,91 @@ internal class ChannelUserRepository : IChannelUserRepository
         _memoryCache.ResetChannelUserPhrases(channelId, userId);
         await _dynamoDbClient.DeleteItemAsync(deleteItemRequest, cancellationToken);
     }
+
+    public async Task<UserChannelResponse> GetAllChannelUsersRelations(CancellationToken cancellationToken)
+    {
+        var attributesToProject = string.Join(
+            ",", 
+            [
+                DynamoDbConfig.PartitionKeyName,
+                DynamoDbConfig.SortKeyName,
+                DynamoDbConfig.Attributes.ChannelUserPhrases, 
+                DynamoDbConfig.Attributes.ChannelUserLastMessage
+            ]);
+        
+        var scanRequest = new ScanRequest
+        {
+            TableName = DynamoDbConfig.TableName,
+            FilterExpression = $"begins_with({DynamoDbConfig.PartitionKeyName}, :channel_prefix) AND begins_with({DynamoDbConfig.SortKeyName}, :user_prefix)",
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                [":channel_prefix"] = new(){ S = Mapper.ChannelIdPrefix},
+                [":user_prefix"] = new(){ S = Mapper.UserIdPrefix},
+            },
+            Select = "SPECIFIC_ATTRIBUTES",
+            ProjectionExpression = attributesToProject
+        };
+        
+        var channelUsersResponse = await _dynamoDbClient.ScanAsync(scanRequest, cancellationToken);
+        if (channelUsersResponse.Items.Any() is false)
+        {
+            return UserChannelResponse.Empty;
+        }
+
+        var channels = new Dictionary<long, Channel>();
+        var getBatchItemsKeys = new List<Dictionary<string, AttributeValue>>();
+        foreach (var item in channelUsersResponse.Items)
+        {
+            var channelId = Mapper.ParseChannelKey(item[DynamoDbConfig.PartitionKeyName].S);
+            if (_memoryCache.GetChannel(channelId) is { } channel)
+            {
+                channels.Add(channelId, channel);
+            }
+            else
+            {
+                getBatchItemsKeys.Add(Mapper.GetChannelKey(channelId));
+            }
+        }
+
+        if (getBatchItemsKeys.Any())
+        {
+            var batchGetItemRequest = new BatchGetItemRequest
+            {
+                RequestItems = new Dictionary<string, KeysAndAttributes>
+                {
+                    [DynamoDbConfig.TableName] = new KeysAndAttributes()
+                    {
+                        Keys = getBatchItemsKeys
+                    }
+                }
+            };
+            
+            var channelsResponse = await  _dynamoDbClient.BatchGetItemAsync(batchGetItemRequest, cancellationToken);
+            foreach (var channel in channelsResponse
+                         .Responses[DynamoDbConfig.TableName]
+                         .Select(channelAttributes => channelAttributes.ToChannel()))
+            {
+                channels.Add(channel.ChannelId, channel);
+            }
+        }
+
+        var items = channelUsersResponse.Items
+            .Select(t =>
+            {
+                var channelUser = t.ToChannelUser();
+                var channel = channels[channelUser.ChannelId];
+                return new UserChannelItemExtended
+                {
+                    UserId = channelUser.UserId,
+                    Phrases = channelUser.Phrases,
+                    LastMessage = channelUser.LastMessage,
+                    Channel = channel
+                };
+            })
+            .ToList();
+
+        return new UserChannelResponse(items);
+    }
     
     private async Task SetNewPhrases(ChannelUser channelUser, List<string> newPhrases, CancellationToken cancellationToken)
     {
@@ -275,4 +361,5 @@ internal class ChannelUserRepository : IChannelUserRepository
                 ? new PageResult<TItem>(items, new Pager()) 
                 : new PageResult<TItem>(items, pager);
     }
+    
 }

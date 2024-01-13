@@ -16,6 +16,6 @@ internal static class DynamoDbConfig
         internal const string UserCreated = "Created";
         internal const string ChannelUserCreated = "Created";
         internal const string ChannelUserPhrases = "Phrases";
-
+        internal const string ChannelUserLastMessage = "LastMessage";
     }
 }

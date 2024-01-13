@@ -1,5 +1,6 @@
 ﻿using TelegramMonitorBot.Domain.Models;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
+using TelegramMonitorBot.Storage.Repositories.Models;
 
 namespace TelegramMonitorBot.Storage.Repositories.Abstractions;
 
@@ -75,4 +76,11 @@ public interface IChannelUserRepository
     /// <param name="userId">The ID of the user.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     Task RemoveChannelUser(long channelId, long userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Retrieves all channel-user relationships along with associated user and channel details.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A response containing a list of user-channel relationships with extended information.</returns>
+    Task<UserChannelResponse> GetAllChannelUsersRelations(CancellationToken cancellationToken);
 }
