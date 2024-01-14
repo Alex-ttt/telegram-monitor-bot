@@ -23,10 +23,5 @@
       <ProjectReference Include="..\TelegramMonitorBot.Domain\TelegramMonitorBot.Domain.csproj" />
       <ProjectReference Include="..\TelegramMonitorBot.DynamoDBMigrator\TelegramMonitorBot.DynamoDBMigrator.csproj" />
     </ItemGroup>
-
-
-    <ItemGroup>
-      <Folder Include="Migrations\" />
-    </ItemGroup>
     
 </Project>

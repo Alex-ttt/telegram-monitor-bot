@@ -20,31 +20,31 @@ public class InitialMigration : MigrationBase
     {
         var request = new CreateTableRequest
         {
-            TableName = DynamoDbConfig.TableName,
+            TableName = DynamoDbConfig.ChannelUsers.TableName,
             KeySchema = 
             {
-                new KeySchemaElement{ AttributeName = DynamoDbConfig.PartitionKeyName, KeyType = "HASH" }, 
-                new KeySchemaElement{ AttributeName = DynamoDbConfig.SortKeyName, KeyType = "RANGE" }
+                new KeySchemaElement{ AttributeName = DynamoDbConfig.ChannelUsers.PartitionKeyName, KeyType = "HASH" }, 
+                new KeySchemaElement{ AttributeName = DynamoDbConfig.ChannelUsers.SortKeyName, KeyType = "RANGE" }
             },
             AttributeDefinitions = 
             {
-                new AttributeDefinition{ AttributeName = DynamoDbConfig.PartitionKeyName, AttributeType = "S" },
-                new AttributeDefinition{ AttributeName = DynamoDbConfig.SortKeyName, AttributeType = "S" }
+                new AttributeDefinition{ AttributeName = DynamoDbConfig.ChannelUsers.PartitionKeyName, AttributeType = "S" },
+                new AttributeDefinition{ AttributeName = DynamoDbConfig.ChannelUsers.SortKeyName, AttributeType = "S" }
             },
             GlobalSecondaryIndexes =
             {
                 new GlobalSecondaryIndex()
                 {
-                    IndexName = DynamoDbConfig.GlobalSecondaryIndexName,
+                    IndexName = DynamoDbConfig.ChannelUsers.GlobalSecondaryIndexName,
                     KeySchema =
                     {
-                        new KeySchemaElement{ AttributeName = DynamoDbConfig.SortKeyName, KeyType = "HASH" },
-                        new KeySchemaElement{ AttributeName = DynamoDbConfig.PartitionKeyName, KeyType = "RANGE" }, 
+                        new KeySchemaElement{ AttributeName = DynamoDbConfig.ChannelUsers.SortKeyName, KeyType = "HASH" },
+                        new KeySchemaElement{ AttributeName = DynamoDbConfig.ChannelUsers.PartitionKeyName, KeyType = "RANGE" }, 
                     },
                     Projection = new Projection
                     {
                         ProjectionType = "INCLUDE",
-                        NonKeyAttributes = { DynamoDbConfig.Attributes.ChannelUserCreated},
+                        NonKeyAttributes = { DynamoDbConfig.ChannelUsers.Attributes.ChannelUserCreated},
                     },
                     ProvisionedThroughput = new ProvisionedThroughput
                     {

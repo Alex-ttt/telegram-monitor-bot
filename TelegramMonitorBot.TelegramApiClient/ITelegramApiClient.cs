@@ -5,5 +5,5 @@ namespace TelegramMonitorBot.TelegramApiClient;
 public interface ITelegramApiClient
 {
     Task<Channel?> FindChannelByName(string channel);
-    Task<Channel?> GetChannel(long channelId);
+    Task<ChannelSearchMessages?> SearchMessages(string channelName, ICollection<string> phrases);
 }

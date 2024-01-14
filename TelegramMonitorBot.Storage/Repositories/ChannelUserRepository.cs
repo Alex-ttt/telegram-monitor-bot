@@ -7,6 +7,9 @@ using TelegramMonitorBot.Storage.Repositories.Abstractions;
 using TelegramMonitorBot.Storage.Repositories.Abstractions.Models;
 using TelegramMonitorBot.Storage.Repositories.Models;
 
+using ChannelUsersConfig = TelegramMonitorBot.Storage.DynamoDbConfig.ChannelUsers;
+using Mapper = TelegramMonitorBot.Storage.Mapping.ChannelUsersMapper;
+
 namespace TelegramMonitorBot.Storage.Repositories;
 
 internal class ChannelUserRepository : IChannelUserRepository
@@ -25,6 +28,7 @@ internal class ChannelUserRepository : IChannelUserRepository
     // TODO consider using result
     public async Task<bool> CheckChannelWithUser(long channelId, long userId, CancellationToken cancellationToken = default)
     {
+        // TODO https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.exists.html
         var channelUser = await GetChannelUser(channelId, userId, cancellationToken);
         return channelUser is not null;
     }
@@ -38,7 +42,7 @@ internal class ChannelUserRepository : IChannelUserRepository
         
         var getChannelRequest = new GetItemRequest
         {
-            TableName = DynamoDbConfig.TableName,
+            TableName = ChannelUsersConfig.TableName,
             Key = Mapper.GetChannelKey(channelId)
         };
         
@@ -56,7 +60,6 @@ internal class ChannelUserRepository : IChannelUserRepository
         
         return result;
     }
-    
 
     public async Task<bool> PutUserChannel(User user, Channel channel, CancellationToken cancellationToken)
     {
@@ -85,15 +88,15 @@ internal class ChannelUserRepository : IChannelUserRepository
         
         var userChannelsQueryRequest = new QueryRequest
         {
-            TableName = DynamoDbConfig.TableName,
-            IndexName = DynamoDbConfig.GlobalSecondaryIndexName,
-            KeyConditionExpression = $"{DynamoDbConfig.SortKeyName} = :user_id_value and begins_with({DynamoDbConfig.PartitionKeyName}, :channel_prefix)",
+            TableName = ChannelUsersConfig.TableName,
+            IndexName = ChannelUsersConfig.GlobalSecondaryIndexName,
+            KeyConditionExpression = $"{ChannelUsersConfig.SortKeyName} = :user_id_value and begins_with({ChannelUsersConfig.PartitionKeyName}, :channel_prefix)",
             ExpressionAttributeValues = new Dictionary<string, AttributeValue>
             {
                 { ":user_id_value", new AttributeValue { S = Mapper.UserIdToKeyValue(userId) } },
                 { ":channel_prefix", new AttributeValue { S = Mapper.ChannelIdPrefix } }
             },
-            ProjectionExpression = $"{DynamoDbConfig.PartitionKeyName}, {DynamoDbConfig.Attributes.ChannelUserCreated}"
+            ProjectionExpression = $"{ChannelUsersConfig.PartitionKeyName}, {ChannelUsersConfig.Attributes.ChannelUserCreated}"
         };
         
         var userChannelsResponse = await _dynamoDbClient.QueryAsync(userChannelsQueryRequest, cancellationToken);
@@ -107,13 +110,13 @@ internal class ChannelUserRepository : IChannelUserRepository
         {
             RequestItems = new Dictionary<string, KeysAndAttributes>
             {
-                [DynamoDbConfig.TableName] = new()
+                [ChannelUsersConfig.TableName] = new()
                 {
                     Keys = userChannelsResponse.Items
                         .Select(t => new Dictionary<string, AttributeValue>
                         {
-                            [DynamoDbConfig.PartitionKeyName] = t[DynamoDbConfig.PartitionKeyName],
-                            [DynamoDbConfig.SortKeyName] = t[DynamoDbConfig.PartitionKeyName],
+                            [ChannelUsersConfig.PartitionKeyName] = t[ChannelUsersConfig.PartitionKeyName],
+                            [ChannelUsersConfig.SortKeyName] = t[ChannelUsersConfig.PartitionKeyName],
                         })
                         .ToList(),
                 }
@@ -123,12 +126,12 @@ internal class ChannelUserRepository : IChannelUserRepository
         var userSubscribedToChannelDate = 
             userChannelsResponse.Items
                 .ToDictionary(
-                    t => t[DynamoDbConfig.PartitionKeyName].S,
-                    t => DateTimeOffset.Parse(t[DynamoDbConfig.Attributes.ChannelCreated].S));
+                    t => t[ChannelUsersConfig.PartitionKeyName].S,
+                    t => DateTimeOffset.Parse(t[ChannelUsersConfig.Attributes.ChannelCreated].S));
         
         // TODO handle channelsResponse.UnprocessedKeys
         var channelsResponse = await _dynamoDbClient.BatchGetItemAsync(batchChannelsRequest, cancellationToken);
-        var channels = channelsResponse.Responses[DynamoDbConfig.TableName]
+        var channels = channelsResponse.Responses[ChannelUsersConfig.TableName]
             .OrderBy(OrderSelector)
             .Select(t => t.ToChannel())
             .ToList();
@@ -137,7 +140,7 @@ internal class ChannelUserRepository : IChannelUserRepository
         
         return GetPageResult(channels, pager);
 
-        DateTimeOffset OrderSelector(Dictionary<string, AttributeValue> t) => userSubscribedToChannelDate[t[DynamoDbConfig.PartitionKeyName].S];
+        DateTimeOffset OrderSelector(Dictionary<string, AttributeValue> t) => userSubscribedToChannelDate[t[ChannelUsersConfig.PartitionKeyName].S];
     }
 
     public async Task AddPhrases(ChannelUser channelUser, CancellationToken cancellationToken)
@@ -195,7 +198,7 @@ internal class ChannelUserRepository : IChannelUserRepository
     {
         var deleteItemRequest = new DeleteItemRequest
         {
-            TableName = DynamoDbConfig.TableName,
+            TableName = ChannelUsersConfig.TableName,
             Key = Mapper.GetChannelUserKey(channelId, userId)
         };
         
@@ -204,26 +207,35 @@ internal class ChannelUserRepository : IChannelUserRepository
         await _dynamoDbClient.DeleteItemAsync(deleteItemRequest, cancellationToken);
     }
 
-    public async Task<UserChannelResponse> GetAllChannelUsersRelations(CancellationToken cancellationToken)
+    public async Task<UserChannelResponse> GetAllChannelUsersRelations(bool onlyWithPhrases, CancellationToken cancellationToken)
     {
         var attributesToProject = string.Join(
             ",", 
             [
-                DynamoDbConfig.PartitionKeyName,
-                DynamoDbConfig.SortKeyName,
-                DynamoDbConfig.Attributes.ChannelUserPhrases, 
-                DynamoDbConfig.Attributes.ChannelUserLastMessage
+                ChannelUsersConfig.PartitionKeyName,
+                ChannelUsersConfig.SortKeyName,
+                ChannelUsersConfig.Attributes.ChannelUserPhrases, 
+                ChannelUsersConfig.Attributes.ChannelUserLastMessage
             ]);
+
+        var filterExpression = $"begins_with({ChannelUsersConfig.PartitionKeyName}, :channel_prefix) AND begins_with({ChannelUsersConfig.SortKeyName}, :user_prefix)";
+        var expressionAttributes = new Dictionary<string, AttributeValue>
+        {
+            [":channel_prefix"] = new() {S = Mapper.ChannelIdPrefix},
+            [":user_prefix"] = new() {S = Mapper.UserIdPrefix},
+        };
+
+        if (onlyWithPhrases)
+        {
+            filterExpression += $" AND attribute_exists({ChannelUsersConfig.Attributes.ChannelUserPhrases}) AND size({ChannelUsersConfig.Attributes.ChannelUserPhrases}) > :zero";
+            expressionAttributes.Add(":zero", new AttributeValue{ N = "0" });
+        }
         
         var scanRequest = new ScanRequest
         {
-            TableName = DynamoDbConfig.TableName,
-            FilterExpression = $"begins_with({DynamoDbConfig.PartitionKeyName}, :channel_prefix) AND begins_with({DynamoDbConfig.SortKeyName}, :user_prefix)",
-            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-            {
-                [":channel_prefix"] = new(){ S = Mapper.ChannelIdPrefix},
-                [":user_prefix"] = new(){ S = Mapper.UserIdPrefix},
-            },
+            TableName = ChannelUsersConfig.TableName,
+            FilterExpression = filterExpression,
+            ExpressionAttributeValues = expressionAttributes,
             Select = "SPECIFIC_ATTRIBUTES",
             ProjectionExpression = attributesToProject
         };
@@ -238,7 +250,7 @@ internal class ChannelUserRepository : IChannelUserRepository
         var getBatchItemsKeys = new List<Dictionary<string, AttributeValue>>();
         foreach (var item in channelUsersResponse.Items)
         {
-            var channelId = Mapper.ParseChannelKey(item[DynamoDbConfig.PartitionKeyName].S);
+            var channelId = Mapper.ParseChannelKey(item[ChannelUsersConfig.PartitionKeyName].S);
             if (_memoryCache.GetChannel(channelId) is { } channel)
             {
                 channels.Add(channelId, channel);
@@ -255,7 +267,7 @@ internal class ChannelUserRepository : IChannelUserRepository
             {
                 RequestItems = new Dictionary<string, KeysAndAttributes>
                 {
-                    [DynamoDbConfig.TableName] = new KeysAndAttributes()
+                    [ChannelUsersConfig.TableName] = new KeysAndAttributes()
                     {
                         Keys = getBatchItemsKeys
                     }
@@ -264,7 +276,7 @@ internal class ChannelUserRepository : IChannelUserRepository
             
             var channelsResponse = await  _dynamoDbClient.BatchGetItemAsync(batchGetItemRequest, cancellationToken);
             foreach (var channel in channelsResponse
-                         .Responses[DynamoDbConfig.TableName]
+                         .Responses[ChannelUsersConfig.TableName]
                          .Select(channelAttributes => channelAttributes.ToChannel()))
             {
                 channels.Add(channel.ChannelId, channel);
@@ -296,9 +308,9 @@ internal class ChannelUserRepository : IChannelUserRepository
         {
             updateItemRequest = new UpdateItemRequest
             {
-                TableName = DynamoDbConfig.TableName, 
+                TableName = ChannelUsersConfig.TableName, 
                 Key = Mapper.GetChannelUserKey(channelUser),
-                ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
+                ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", ChannelUsersConfig.Attributes.ChannelUserPhrases } },
                 UpdateExpression = "REMOVE #phrases",
             };
         }
@@ -306,9 +318,9 @@ internal class ChannelUserRepository : IChannelUserRepository
         {
             updateItemRequest = new UpdateItemRequest
             {
-                TableName = DynamoDbConfig.TableName, 
+                TableName = ChannelUsersConfig.TableName, 
                 Key = Mapper.GetChannelUserKey(channelUser),
-                ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", DynamoDbConfig.Attributes.ChannelUserPhrases } },
+                ExpressionAttributeNames = new Dictionary<string, string> { { "#phrases", ChannelUsersConfig.Attributes.ChannelUserPhrases } },
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue> { { ":newPhrases", new AttributeValue { SS = newPhrases } } },
                 UpdateExpression = "SET #phrases = :newPhrases",
             };
@@ -322,7 +334,7 @@ internal class ChannelUserRepository : IChannelUserRepository
     {
         var getChannelUserRequest = new GetItemRequest
         {
-            TableName = DynamoDbConfig.TableName,
+            TableName = ChannelUsersConfig.TableName,
             Key = Mapper.GetChannelUserKey(channelId, userId),
         };
         
@@ -337,9 +349,9 @@ internal class ChannelUserRepository : IChannelUserRepository
     {
         var channelRequest = new PutItemRequest
         {
-            TableName = DynamoDbConfig.TableName,
+            TableName = ChannelUsersConfig.TableName,
             Item = item,
-            ConditionExpression = $"attribute_not_exists({DynamoDbConfig.PartitionKeyName}) AND attribute_not_exists({DynamoDbConfig.SortKeyName})",
+            ConditionExpression = $"attribute_not_exists({ChannelUsersConfig.PartitionKeyName}) AND attribute_not_exists({ChannelUsersConfig.SortKeyName})",
         };
 
         try

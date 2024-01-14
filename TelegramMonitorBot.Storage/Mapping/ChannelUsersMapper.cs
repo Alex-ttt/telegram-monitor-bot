@@ -1,11 +1,11 @@
 ﻿using Amazon.DynamoDBv2.Model;
 using TelegramMonitorBot.Domain.Models;
 
-using static  TelegramMonitorBot.Storage.DynamoDbConfig;
+using ChannelUsersConfig = TelegramMonitorBot.Storage.DynamoDbConfig.ChannelUsers;
 
 namespace TelegramMonitorBot.Storage.Mapping;
 
-internal static class Mapper
+internal static class ChannelUsersMapper
 {
     internal const string ChannelIdPrefix = "channel#";
     internal const string UserIdPrefix = "user#";
@@ -20,10 +20,10 @@ internal static class Mapper
         
         return new Dictionary<string, AttributeValue>
         {
-            [PartitionKeyName] = new() {S = key},
-            [SortKeyName] = new() {S = key},
-            [Attributes.UserName] = new() {S = user.Name},
-            [Attributes.UserCreated] = new() {S = user.Created.ToString()},
+            [ChannelUsersConfig.PartitionKeyName] = new() {S = key},
+            [ChannelUsersConfig.SortKeyName] = new() {S = key},
+            [ChannelUsersConfig.Attributes.UserName] = new() {S = user.Name},
+            [ChannelUsersConfig.Attributes.UserCreated] = new() {S = user.Created.ToString()},
         };
     }
     
@@ -33,10 +33,10 @@ internal static class Mapper
         
         return new Dictionary<string, AttributeValue>
         {
-            [PartitionKeyName] = new () { S = key},
-            [SortKeyName] = new () { S = key},
-            [Attributes.ChannelName] = new() { S = channel.Name},
-            [Attributes.ChannelCreated] = new() {S = channel.Created.ToString()},
+            [ChannelUsersConfig.PartitionKeyName] = new () { S = key},
+            [ChannelUsersConfig.SortKeyName] = new () { S = key},
+            [ChannelUsersConfig.Attributes.ChannelName] = new() { S = channel.Name},
+            [ChannelUsersConfig.Attributes.ChannelCreated] = new() {S = channel.Created.ToString()},
         };
     }
     
@@ -44,19 +44,19 @@ internal static class Mapper
     {
         var result = new Dictionary<string, AttributeValue>
         {
-            [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelUser.ChannelId)},
-            [SortKeyName] = new() { S = UserIdToKeyValue(channelUser.UserId)},
-            [Attributes.ChannelUserCreated] = new() {S = channelUser.Created.ToString()},
+            [ChannelUsersConfig.PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelUser.ChannelId)},
+            [ChannelUsersConfig.SortKeyName] = new() { S = UserIdToKeyValue(channelUser.UserId)},
+            [ChannelUsersConfig.Attributes.ChannelUserCreated] = new() {S = channelUser.Created.ToString()},
         };
 
         if (channelUser.Phrases is { Count: > 0} phrases)
         {
-            result.Add(Attributes.ChannelUserPhrases, new AttributeValue { SS = phrases});
+            result.Add(ChannelUsersConfig.Attributes.ChannelUserPhrases, new AttributeValue { SS = phrases});
         }
         
         if(channelUser.LastMessage is { } lastMessage)
         {
-            result.Add(Attributes.ChannelUserLastMessage, new AttributeValue { N = lastMessage.ToString()});
+            result.Add(ChannelUsersConfig.Attributes.ChannelUserLastMessage, new AttributeValue { N = lastMessage.ToString()});
         }
 
         return result;
@@ -64,10 +64,10 @@ internal static class Mapper
 
     internal static Channel ToChannel(this Dictionary<string, AttributeValue> dictionary)
     {
-        var channelId = ParseChannelKey(dictionary[PartitionKeyName].S);
+        var channelId = ParseChannelKey(dictionary[ChannelUsersConfig.PartitionKeyName].S);
         
-        var name = dictionary[Attributes.ChannelName].S;
-        var created = DateTimeOffset.Parse(dictionary[Attributes.ChannelCreated].S);
+        var name = dictionary[ChannelUsersConfig.Attributes.ChannelName].S;
+        var created = DateTimeOffset.Parse(dictionary[ChannelUsersConfig.Attributes.ChannelCreated].S);
         
         return new Channel(channelId, name)
         {
@@ -77,19 +77,19 @@ internal static class Mapper
 
     internal static ChannelUser ToChannelUser(this Dictionary<string, AttributeValue> dictionary)
     {
-        var channelId = ParseChannelKey(dictionary[PartitionKeyName].S);
+        var channelId = ParseChannelKey(dictionary[ChannelUsersConfig.PartitionKeyName].S);
         
-        var userIdKey = dictionary[SortKeyName].S;
+        var userIdKey = dictionary[ChannelUsersConfig.SortKeyName].S;
         var userId = long.Parse(userIdKey[UserIdPrefix.Length..]);
 
         List<string>? phrases = null;
-        if(dictionary.TryGetValue(Attributes.ChannelUserPhrases, out var phrasesAttribute))
+        if(dictionary.TryGetValue(ChannelUsersConfig.Attributes.ChannelUserPhrases, out var phrasesAttribute))
         {
             phrases = phrasesAttribute.SS;
         }
         
         long? lastMessage = null;
-        if(dictionary.TryGetValue(Attributes.ChannelUserLastMessage, out var lastMessageAttribute))
+        if(dictionary.TryGetValue(ChannelUsersConfig.Attributes.ChannelUserLastMessage, out var lastMessageAttribute))
         {
             lastMessage = long.Parse(lastMessageAttribute.N);
         }
@@ -106,8 +106,8 @@ internal static class Mapper
     {
         return new Dictionary<string, AttributeValue>
         {
-            [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
-            [SortKeyName] = new() { S = UserIdToKeyValue(userId) },
+            [ChannelUsersConfig.PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
+            [ChannelUsersConfig.SortKeyName] = new() { S = UserIdToKeyValue(userId) },
         };
     }
 
@@ -115,15 +115,14 @@ internal static class Mapper
     {
         return new Dictionary<string, AttributeValue>
         {
-            [PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
-            [SortKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
+            [ChannelUsersConfig.PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
+            [ChannelUsersConfig.SortKeyName] = new() { S = ChannelIdToKeyValue(channelId) },
         }; 
     }
 
     internal static long ParseChannelKey(string channelKey)
     {
-        var channelIdKey = channelKey;
-        var channelId = long.Parse(channelIdKey[ChannelIdPrefix.Length..]);
+        var channelId = long.Parse(channelKey[ChannelIdPrefix.Length..]);
 
         return channelId;
     }

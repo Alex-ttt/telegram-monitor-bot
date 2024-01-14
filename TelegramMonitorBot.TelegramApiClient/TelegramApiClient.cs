@@ -1,4 +1,5 @@
-﻿using TdLib;
+﻿using System.Diagnostics;
+using TdLib;
 using TelegramMonitorBot.TelegramApiClient.Models;
 using TelegramMonitorBot.TelegramApiClient.Services;
 
@@ -40,61 +41,42 @@ internal class TelegramApiClient : ITelegramApiClient
 
     }
 
-    public async Task<Channel?> GetChannel(long channelId)
+    public async Task<ChannelSearchMessages?> SearchMessages(string channelName, ICollection<string> phrases)
     {
-        var accessibleChannel = await GetChannelById(channelId);
-        if (accessibleChannel is not null)
+        if (phrases is not {Count: > 0})
         {
-            return accessibleChannel;
+            return null;
         }
 
-        var joinChannelResult = await JoinChannel(channelId);
-        if (joinChannelResult is false)
+        var channel = await FindChannelByName(channelName);
+        if (channel is null)
         {
             return null;
         }
         
-        var newChannel = await GetChannelById(channelId);
-
-        return newChannel;
-    }
-
-    private async Task<bool> JoinChannel(long channelId)
-    {
-        // _tdClient.Search
-        
-        var result = await _tdClient.JoinChatAsync(channelId);
-        return result is not null;
-    }
-    
-    
-    private async Task<Channel?> GetChannelById(long channelId)
-    {
-        try
+        var phraseSearchMessages = new Dictionary<string, ICollection<SearchMessage>>();
+        var lastMessage = long.MinValue;
+        foreach (var phrase in phrases)
         {
-            var channel = await _tdClient.GetChatAsync(channelId);
-            var channelUserName = await GetChannelUserName(channel);
-
-            return new Channel
+            var foundMessages = await _tdClient.SearchChatMessagesAsync(channel.Id, phrase, limit: 100);
+            if(foundMessages.Messages.Length == 0)
             {
-                Id = channel.Id,
-                Name = channelUserName,
-            };
-        }
-        catch (TdException ex) when (ex.Message == "Chat not found")
-        {
-            return null;
-        }
-    }
+                continue;
+            }
 
-    private async Task<string> GetChannelUserName(TdApi.Chat chat)
-    {
-        if (chat.Type is TdApi.ChatType.ChatTypeSupergroup { } supergroup)
-        {
-            var superGroup = await _tdClient.GetSupergroupAsync(supergroup.SupergroupId);
-            return superGroup.Usernames.ActiveUsernames.FirstOrDefault() ?? "<unknown>";
+            var currentMessages = new List<SearchMessage>();
+            phraseSearchMessages[phrase] = currentMessages;
+            foreach (var foundMessage in foundMessages.Messages)
+            {
+                var messageLink = await _tdClient.GetMessageLinkAsync(channel.Id, foundMessage.Id);
+                var messageDate = DateTimeOffset.FromUnixTimeSeconds(foundMessage.Date);
+                
+                currentMessages.Add(new SearchMessage(foundMessage.Id, messageLink.Link, messageDate));
+            }
+            
+            lastMessage = Math.Max(lastMessage, foundMessages.NextFromMessageId);
         }
 
-        return string.Empty;
+        return new ChannelSearchMessages(channel.Id, lastMessage, phraseSearchMessages);
     }
 }

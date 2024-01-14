@@ -78,9 +78,10 @@ public interface IChannelUserRepository
     Task RemoveChannelUser(long channelId, long userId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Retrieves all channel-user relationships along with associated user and channel details.
+    /// Retrieves all channel-user relationships along with associated user and channel details, optionally filtering by those with non-empty phrases.
     /// </summary>
+    /// <param name="onlyWithPhrases">A boolean flag indicating whether to include only relationships with non-empty phrases.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A response containing a list of user-channel relationships with extended information.</returns>
-    Task<UserChannelResponse> GetAllChannelUsersRelations(CancellationToken cancellationToken);
+    Task<UserChannelResponse> GetAllChannelUsersRelations(bool onlyWithPhrases, CancellationToken cancellationToken);
 }
