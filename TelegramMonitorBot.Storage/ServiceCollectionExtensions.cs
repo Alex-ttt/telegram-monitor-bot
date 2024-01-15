@@ -15,7 +15,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StorageMigrator>(t => new StorageMigrator(clientInitializer.GetClient()));
         services.AddSingleton<StorageMemoryCache>();
 
-        services.AddScoped<IChannelUserRepository, ChannelUserRepository>();
+        services
+            .AddScoped<IChannelUserRepository, ChannelUserRepository>()
+            .AddScoped<ISearchResultsRepository, SearchResultsRepository>();
 
         return services;
     }

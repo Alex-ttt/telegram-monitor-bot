@@ -53,11 +53,7 @@ public class InitialMigration : MigrationBase
                     }
                 }
             },
-            ProvisionedThroughput = new ProvisionedThroughput
-            {
-                ReadCapacityUnits = 5,
-                WriteCapacityUnits = 3
-            },
+            BillingMode = BillingMode.PAY_PER_REQUEST
         };
         
         _ = await client.CreateTableAsync(request);

@@ -31,7 +31,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<MessageRouter>()
             .AddSingleton<CallbackQueryRouter>()
             .AddHostedService<PollingService>()
-            .AddHostedService<UpdatePublisher>();
+            .AddHostedService<PhraseSearcher>();
         
         return services;
     } 

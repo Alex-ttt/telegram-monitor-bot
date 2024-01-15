@@ -1,6 +1,6 @@
 ﻿using Amazon.DynamoDBv2.Model;
 using TelegramMonitorBot.Domain.Models;
-
+using TelegramMonitorBot.Storage.Extensions;
 using ChannelUsersConfig = TelegramMonitorBot.Storage.DynamoDbConfig.ChannelUsers;
 
 namespace TelegramMonitorBot.Storage.Mapping;
@@ -23,7 +23,7 @@ internal static class ChannelUsersMapper
             [ChannelUsersConfig.PartitionKeyName] = new() {S = key},
             [ChannelUsersConfig.SortKeyName] = new() {S = key},
             [ChannelUsersConfig.Attributes.UserName] = new() {S = user.Name},
-            [ChannelUsersConfig.Attributes.UserCreated] = new() {S = user.Created.ToString()},
+            [ChannelUsersConfig.Attributes.UserCreated] = new() {S = user.Created.ToISO_8601()},
         };
     }
     
@@ -36,7 +36,7 @@ internal static class ChannelUsersMapper
             [ChannelUsersConfig.PartitionKeyName] = new () { S = key},
             [ChannelUsersConfig.SortKeyName] = new () { S = key},
             [ChannelUsersConfig.Attributes.ChannelName] = new() { S = channel.Name},
-            [ChannelUsersConfig.Attributes.ChannelCreated] = new() {S = channel.Created.ToString()},
+            [ChannelUsersConfig.Attributes.ChannelCreated] = new() {S = channel.Created.ToISO_8601()},
         };
     }
     
@@ -46,7 +46,7 @@ internal static class ChannelUsersMapper
         {
             [ChannelUsersConfig.PartitionKeyName] = new() { S = ChannelIdToKeyValue(channelUser.ChannelId)},
             [ChannelUsersConfig.SortKeyName] = new() { S = UserIdToKeyValue(channelUser.UserId)},
-            [ChannelUsersConfig.Attributes.ChannelUserCreated] = new() {S = channelUser.Created.ToString()},
+            [ChannelUsersConfig.Attributes.ChannelUserCreated] = new() {S = channelUser.Created.ToISO_8601()},
         };
 
         if (channelUser.Phrases is { Count: > 0} phrases)

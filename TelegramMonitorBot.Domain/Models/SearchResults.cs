@@ -12,5 +12,4 @@ public class SearchResults
     public long ChannelId { get; }
     public long UserId { get; }
     public ICollection<SearchResult> Results { get; }
-
 }

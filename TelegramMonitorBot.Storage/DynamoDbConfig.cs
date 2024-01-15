@@ -39,7 +39,7 @@ internal static class DynamoDbConfig
             internal const string SearchResultsMessageLink = "Link";
             internal const string SearchResultsMessageDate = "Date";
             
-            internal const string Ttl = "TTL";
+            internal const string ExpiredAt = "ExpiredAt";
         }
     }
 }

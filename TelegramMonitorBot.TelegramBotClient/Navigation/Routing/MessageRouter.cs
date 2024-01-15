@@ -1,11 +1,11 @@
 ﻿using MediatR;
 using Telegram.Bot.Types;
-using TelegramMonitorBot.TelegramBotClient.Application.Commands.AddChannelUser;
-using TelegramMonitorBot.TelegramBotClient.Application.Commands.AddPhrasesToChannel;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.About;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetMenu;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.UnknownQuery;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Commands.AddChannelUser;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Commands.AddPhrasesToChannel;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.About;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.GetChannels;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.GetMenu;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.UnknownQuery;
 using TelegramMonitorBot.TelegramBotClient.ChatContext;
 
 namespace TelegramMonitorBot.TelegramBotClient.Navigation.Routing;

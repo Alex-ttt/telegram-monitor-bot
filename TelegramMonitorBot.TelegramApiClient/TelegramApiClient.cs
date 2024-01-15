@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using TdLib;
+﻿using TdLib;
 using TelegramMonitorBot.TelegramApiClient.Models;
 using TelegramMonitorBot.TelegramApiClient.Services;
 
@@ -17,7 +16,7 @@ internal class TelegramApiClient : ITelegramApiClient
     public async Task<Channel?> FindChannelByName(string channel)
     {
         var channelName = ChannelService.ParseChannel(channel);
-
+        
         TdApi.Chat? searchPublicChatResult;
         try
         {
@@ -36,12 +35,16 @@ internal class TelegramApiClient : ITelegramApiClient
         return new Channel
         {
             Id = searchPublicChatResult.Id,
-            Name = channelName
+            Name = channelName.ToLower()
         };
-
     }
 
-    public async Task<ChannelSearchMessages?> SearchMessages(string channelName, ICollection<string> phrases)
+    public async Task<ChannelSearchMessages?> SearchMessages(long channelId, ICollection<string> phrases, long? lastMessage = null)
+    {
+        return await SearchMessagesInternal(channelId, phrases);
+    }
+    
+    public async Task<ChannelSearchMessages?> SearchMessages(string channelName, ICollection<string> phrases, long? lastMessage = null)
     {
         if (phrases is not {Count: > 0})
         {
@@ -54,29 +57,35 @@ internal class TelegramApiClient : ITelegramApiClient
             return null;
         }
         
-        var phraseSearchMessages = new Dictionary<string, ICollection<SearchMessage>>();
-        var lastMessage = long.MinValue;
+        return await SearchMessagesInternal(channel.Id, phrases);
+    }
+
+    public async Task<ChannelSearchMessages?> SearchMessagesInternal(long channelId, ICollection<string> phrases, long? lastMessage = null)
+    {
+        var phraseSearchMessages = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.ICollection<SearchMessage>>();
+        var maxOffset = long.MinValue;
         foreach (var phrase in phrases)
         {
-            var foundMessages = await _tdClient.SearchChatMessagesAsync(channel.Id, phrase, limit: 100);
+            var foundMessages = await _tdClient.SearchChatMessagesAsync(channelId, phrase, limit: 100, fromMessageId: lastMessage ?? 0L);
             if(foundMessages.Messages.Length == 0)
             {
                 continue;
             }
 
+            maxOffset = Math.Max(maxOffset, foundMessages.NextFromMessageId);
+
             var currentMessages = new List<SearchMessage>();
             phraseSearchMessages[phrase] = currentMessages;
             foreach (var foundMessage in foundMessages.Messages)
             {
-                var messageLink = await _tdClient.GetMessageLinkAsync(channel.Id, foundMessage.Id);
+                var messageLink = await _tdClient.GetMessageLinkAsync(channelId, foundMessage.Id);
                 var messageDate = DateTimeOffset.FromUnixTimeSeconds(foundMessage.Date);
+                var messageToAdd = new SearchMessage(foundMessage.Id, messageLink.Link, messageDate);
                 
-                currentMessages.Add(new SearchMessage(foundMessage.Id, messageLink.Link, messageDate));
+                currentMessages.Add(messageToAdd);
             }
-            
-            lastMessage = Math.Max(lastMessage, foundMessages.NextFromMessageId);
         }
-
-        return new ChannelSearchMessages(channel.Id, lastMessage, phraseSearchMessages);
+        
+        return new ChannelSearchMessages(channelId, maxOffset, phraseSearchMessages);
     }
 }

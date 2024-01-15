@@ -1,5 +1,6 @@
 ﻿using Amazon.DynamoDBv2.Model;
 using TelegramMonitorBot.Domain.Models;
+using TelegramMonitorBot.Storage.Extensions;
 using Attributes = TelegramMonitorBot.Storage.DynamoDbConfig.SearchResults.Attributes;
 using SearchResultsConfig = TelegramMonitorBot.Storage.DynamoDbConfig.SearchResults;
 
@@ -10,9 +11,9 @@ internal static class SearchResultsMapping
     private const string ChannelIdPrefix = "channel#";
     private const string UserIdPrefix = "user#";
     
-    internal static Dictionary<string, AttributeValue> ToDictionary(this SearchResults searchResults, TimeSpan ttl)
+    internal static Dictionary<string, AttributeValue> ToDictionary(this SearchResults searchResults, TimeSpan timeToLive)
     {
-        var unixTtl = (int)(DateTime.UtcNow.Add(ttl) - DateTime.UnixEpoch).TotalSeconds;
+        var unixTtl = (int)(DateTime.UtcNow.Add(timeToLive) - DateTime.UnixEpoch).TotalSeconds;
         var result = new Dictionary<string, AttributeValue>
         {
             [DynamoDbConfig.SearchResults.PartitionKeyName] = new()
@@ -27,7 +28,7 @@ internal static class SearchResultsMapping
             {
                 L = searchResults.Results.Select(GetSearchResultAttribute).ToList(),
             },
-            [Attributes.Ttl] = new()
+            [Attributes.ExpiredAt] = new()
             {
                 N = unixTtl.ToString()
             }
@@ -82,7 +83,7 @@ internal static class SearchResultsMapping
             {
                 [Attributes.SearchResultsMessageId] = new() { N = message.Id.ToString()},
                 [Attributes.SearchResultsMessageLink] = new() { S = message.Link},
-                [Attributes.SearchResultsMessageDate] = new() { S = message.Date.ToString()},
+                [Attributes.SearchResultsMessageDate] = new() { S = message.Date.ToISO_8601()},
             }
         };
     }

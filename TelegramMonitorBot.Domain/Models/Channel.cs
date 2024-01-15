@@ -11,4 +11,6 @@ public class Channel
         ChannelId = channelId;
         Name = name;
     }
+
+    public override int GetHashCode() => ChannelId.GetHashCode();
 }

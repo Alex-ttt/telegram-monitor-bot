@@ -1,15 +1,15 @@
 ﻿using System.Text.RegularExpressions;
 using MediatR;
 using Telegram.Bot.Types;
-using TelegramMonitorBot.TelegramBotClient.Application.Commands.AcceptUnsubscribeFromChannel;
-using TelegramMonitorBot.TelegramBotClient.Application.Commands.PrepareChannelForPhrasesAdding;
-using TelegramMonitorBot.TelegramBotClient.Application.Commands.RemovePhrase;
-using TelegramMonitorBot.TelegramBotClient.Application.Commands.TurnOnSubscribeMode;
-using TelegramMonitorBot.TelegramBotClient.Application.Common;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.EditChannelMenu;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannelPhrases;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.GetChannels;
-using TelegramMonitorBot.TelegramBotClient.Application.Queries.UnsubscribeFromChannel;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Commands.AcceptUnsubscribeFromChannel;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Commands.PrepareChannelForPhrasesAdding;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Commands.RemovePhrase;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Commands.TurnOnSubscribeMode;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Common;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.EditChannelMenu;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.GetChannelPhrases;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.GetChannels;
+using TelegramMonitorBot.TelegramBotClient.Application.ChatBot.Queries.UnsubscribeFromChannel;
 
 namespace TelegramMonitorBot.TelegramBotClient.Navigation.Routing;
 
