@@ -24,18 +24,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Remove="tdlib.linux\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <EmbeddedResource Remove="tdlib.linux\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Remove="tdlib.linux\**" />
-    </ItemGroup>
-
-    <ItemGroup>
       <Reference Include="Microsoft.AspNetCore">
         <HintPath>..\..\..\..\..\Program Files\dotnet\shared\Microsoft.AspNetCore.App\8.0.0\Microsoft.AspNetCore.dll</HintPath>
       </Reference>

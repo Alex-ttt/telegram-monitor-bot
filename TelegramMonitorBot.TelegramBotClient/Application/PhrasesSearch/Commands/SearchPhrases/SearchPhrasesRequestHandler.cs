@@ -7,6 +7,8 @@ using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramApiClient.Models;
 using Channel = TelegramMonitorBot.Domain.Models.Channel;
 
+using SearchResultInfo = (long LastMessage, long UserId, TelegramMonitorBot.Domain.Models.SearchResults? SearchResults);
+
 namespace TelegramMonitorBot.TelegramBotClient.Application.PhrasesSearch.Commands.SearchPhrases;
 
 public class SearchPhrasesRequestHandler : IRequestHandler<SearchPhrasesRequest>
@@ -44,14 +46,21 @@ public class SearchPhrasesRequestHandler : IRequestHandler<SearchPhrasesRequest>
         foreach (var itemsGroup in itemsByChannel)
         {
             var currentChannel = itemsGroup.Key;
-            await foreach (var searchResults in SearchByChannel(currentChannel, itemsGroup.AsEnumerable()).WithCancellation(cancellationToken))
+            await foreach (var resultInfo in SearchByChannel(currentChannel, itemsGroup.AsEnumerable()).WithCancellation(cancellationToken))
             {
-                await _searchResultsRepository.AddSearchResults(searchResults, cancellationToken);
+                if(resultInfo.SearchResults is { Results.Count: > 0 } searchResults)
+                {
+                    await _searchResultsRepository.MergeSearchResults(resultInfo.LastMessage, searchResults, cancellationToken);
+                }
+                else
+                {
+                    await _channelUserRepository.UpdateLastMessage(currentChannel.ChannelId, resultInfo.UserId, resultInfo.LastMessage, cancellationToken);
+                }
             }
         }
     }
     
-    private async IAsyncEnumerable<SearchResults> SearchByChannel(
+    private async IAsyncEnumerable<SearchResultInfo> SearchByChannel(
         Channel channel, 
         IEnumerable<UserChannelItemExtended> searchData)
     {
@@ -67,23 +76,30 @@ public class SearchPhrasesRequestHandler : IRequestHandler<SearchPhrasesRequest>
             var searchMessages = await _telegramApiClient.SearchMessages(searchItem.Channel.ChannelId, searchItem.Phrases!, searchItem.LastMessage);
             if (searchMessages is not {PhraseSearchMessages.Count: > 0})
             {
+                yield return (searchMessages.LastMessage, searchItem.UserId, null);
                 continue;
             }
+
+            var results = searchMessages.PhraseSearchMessages
+                .ToDictionary(t => t.Key, ConvertMessages);
             
             var searchResult = new SearchResults(
                 channel.ChannelId,
                 searchItem.UserId,
-                searchMessages.PhraseSearchMessages.Select(SearchResultSelector).ToList());
+                results);
                 
-            yield return searchResult;
+            yield return (searchMessages.LastMessage, searchItem.UserId, searchResult);
         }
 
         yield break;
 
-        static SearchResult SearchResultSelector(KeyValuePair<string, ICollection<SearchMessage>> phrasesToSearchMessages)
+        static IList<Message> ConvertMessages(KeyValuePair<string, ICollection<SearchMessage>> phrasesToSearchMessages)
         {
-            var newMessages = phrasesToSearchMessages.Value.Select(m => new Message(m.Id, m.Link, m.Date)).ToList();
-            return new SearchResult(phrasesToSearchMessages.Key, newMessages);
+            var newMessages = phrasesToSearchMessages.Value
+                .Select(m => new Message(m.Id, m.Link, m.Date))
+                .ToList();
+            
+            return newMessages;
         }
     }
 

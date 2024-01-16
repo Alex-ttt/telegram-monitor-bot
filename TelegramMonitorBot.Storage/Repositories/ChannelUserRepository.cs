@@ -292,7 +292,7 @@ internal class ChannelUserRepository : IChannelUserRepository
                 {
                     UserId = channelUser.UserId,
                     Phrases = channelUser.Phrases,
-                    LastMessage = channelUser.LastMessage,
+                    LastMessage = channelUser.LastMessage ?? 0,
                     Channel = channel
                 };
             })
@@ -300,7 +300,27 @@ internal class ChannelUserRepository : IChannelUserRepository
 
         return new UserChannelResponse(items);
     }
-    
+
+    public async Task UpdateLastMessage(long channelId, long userId, long lastMessage, CancellationToken cancellationToken)
+    {
+        var updateItemRequest = new UpdateItemRequest
+        {
+            TableName = ChannelUsersConfig.TableName,
+            Key = Mapper.GetChannelUserKey(channelId, userId),
+            UpdateExpression = "SET #lastMessage = :value",
+            ConditionExpression = "attribute_exists(#partitionKey) AND attribute_exists(#sortKey)",
+            ExpressionAttributeNames = new Dictionary<string, string>
+            {
+                ["#lastMessage"] = ChannelUsersConfig.Attributes.ChannelUserLastMessage,
+                ["#partitionKey"] = ChannelUsersConfig.PartitionKeyName,
+                ["#sortKey"] = ChannelUsersConfig.SortKeyName
+            },
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>{ [":value"] = new() { N = lastMessage.ToString()}},
+        };
+        
+        await _dynamoDbClient.UpdateItemAsync(updateItemRequest, cancellationToken);
+    }
+
     private async Task SetNewPhrases(ChannelUser channelUser, List<string> newPhrases, CancellationToken cancellationToken)
     {
         UpdateItemRequest updateItemRequest;
@@ -340,7 +360,7 @@ internal class ChannelUserRepository : IChannelUserRepository
         
         var channelUserResult = await _dynamoDbClient.GetItemAsync(getChannelUserRequest, cancellationToken);
         return 
-            channelUserResult.Item?.Any() is true 
+            channelUserResult.Item?.Count is > 0 
                 ? channelUserResult.Item.ToChannelUser() 
                 : null;
     }

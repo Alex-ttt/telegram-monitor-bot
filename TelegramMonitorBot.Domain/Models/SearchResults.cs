@@ -2,7 +2,7 @@
 
 public class SearchResults
 {
-    public SearchResults(long channelId, long userId, ICollection<SearchResult> results)
+    public SearchResults(long channelId, long userId, IDictionary<string, IList<Message>> results)
     {
         ChannelId = channelId;
         UserId = userId;
@@ -11,5 +11,6 @@ public class SearchResults
     
     public long ChannelId { get; }
     public long UserId { get; }
-    public ICollection<SearchResult> Results { get; }
+ 
+    public IDictionary<string, IList<Message>> Results { get; }
 }

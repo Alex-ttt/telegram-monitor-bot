@@ -28,7 +28,7 @@ public class PhraseSearcher : BackgroundService
             {
                 var mediator = _serviceScopeFactory.CreateScope().ServiceProvider.GetRequiredService<IMediator>();
                 await mediator.Send(new SearchPhrasesRequest(), stoppingToken);
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
             }
             catch(Exception ex)
             {

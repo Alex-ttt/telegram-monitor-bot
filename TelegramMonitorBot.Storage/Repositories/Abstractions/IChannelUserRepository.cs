@@ -84,4 +84,13 @@ public interface IChannelUserRepository
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A response containing a list of user-channel relationships with extended information.</returns>
     Task<UserChannelResponse> GetAllChannelUsersRelations(bool onlyWithPhrases, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the last message identifier for a specific channel-user relationship.
+    /// </summary>
+    /// <param name="channelId">The ID of the channel.</param>
+    /// <param name="userId">The ID of the user.</param>
+    /// <param name="lastMessage">The new last message identifier to be updated.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    Task UpdateLastMessage(long channelId, long userId, long lastMessage, CancellationToken cancellationToken);
 }
