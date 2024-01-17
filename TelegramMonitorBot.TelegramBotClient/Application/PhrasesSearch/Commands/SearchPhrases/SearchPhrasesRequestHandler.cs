@@ -7,7 +7,7 @@ using TelegramMonitorBot.TelegramApiClient;
 using TelegramMonitorBot.TelegramApiClient.Models;
 using Channel = TelegramMonitorBot.Domain.Models.Channel;
 
-using SearchResultInfo = (long LastMessage, long UserId, TelegramMonitorBot.Domain.Models.SearchResults? SearchResults);
+using SearchResultInfo = (long LastMessage, TelegramMonitorBot.Domain.Models.SearchResults SearchResults);
 
 namespace TelegramMonitorBot.TelegramBotClient.Application.PhrasesSearch.Commands.SearchPhrases;
 
@@ -45,24 +45,19 @@ public class SearchPhrasesRequestHandler : IRequestHandler<SearchPhrasesRequest>
         
         foreach (var itemsGroup in itemsByChannel)
         {
-            var currentChannel = itemsGroup.Key;
-            await foreach (var resultInfo in SearchByChannel(currentChannel, itemsGroup.AsEnumerable()).WithCancellation(cancellationToken))
-            {
-                if(resultInfo.SearchResults is { Results.Count: > 0 } searchResults)
-                {
-                    await _searchResultsRepository.MergeSearchResults(resultInfo.LastMessage, searchResults, cancellationToken);
-                }
-                else
-                {
-                    await _channelUserRepository.UpdateLastMessage(currentChannel.ChannelId, resultInfo.UserId, resultInfo.LastMessage, cancellationToken);
-                }
-            }
+            await HandleChannel(itemsGroup.Key, itemsGroup, cancellationToken);
+        }
+    }
+
+    private async Task HandleChannel(Channel channel, IEnumerable<UserChannelItemExtended> searchData, CancellationToken cancellationToken)
+    {
+        await foreach (var resultInfo in SearchByChannel(channel, searchData).WithCancellation(cancellationToken))
+        {
+            await _searchResultsRepository.MergeSearchResults(resultInfo.LastMessage, resultInfo.SearchResults, cancellationToken);
         }
     }
     
-    private async IAsyncEnumerable<SearchResultInfo> SearchByChannel(
-        Channel channel, 
-        IEnumerable<UserChannelItemExtended> searchData)
+    private async IAsyncEnumerable<SearchResultInfo> SearchByChannel(Channel channel, IEnumerable<UserChannelItemExtended> searchData)
     {
         // Wee need to load a channel once to operate with channelId
         var channelLoaded = await LoadChannel(channel);
@@ -76,7 +71,7 @@ public class SearchPhrasesRequestHandler : IRequestHandler<SearchPhrasesRequest>
             var searchMessages = await _telegramApiClient.SearchMessages(searchItem.Channel.ChannelId, searchItem.Phrases!, searchItem.LastMessage);
             if (searchMessages is not {PhraseSearchMessages.Count: > 0})
             {
-                yield return (searchMessages.LastMessage, searchItem.UserId, null);
+                yield return (searchMessages.LastMessage, SearchResults.GetEmpty(channel.ChannelId, searchItem.UserId));
                 continue;
             }
 
@@ -88,14 +83,14 @@ public class SearchPhrasesRequestHandler : IRequestHandler<SearchPhrasesRequest>
                 searchItem.UserId,
                 results);
                 
-            yield return (searchMessages.LastMessage, searchItem.UserId, searchResult);
+            yield return (searchMessages.LastMessage, searchResult);
         }
 
         yield break;
 
-        static IList<Message> ConvertMessages(KeyValuePair<string, ICollection<SearchMessage>> phrasesToSearchMessages)
+        static IList<Message> ConvertMessages(KeyValuePair<string, ICollection<SearchMessage>> messages)
         {
-            var newMessages = phrasesToSearchMessages.Value
+            var newMessages = messages.Value
                 .Select(m => new Message(m.Id, m.Link, m.Date))
                 .ToList();
             
@@ -105,7 +100,6 @@ public class SearchPhrasesRequestHandler : IRequestHandler<SearchPhrasesRequest>
 
     private async Task<bool> LoadChannel(Channel currentChannel)
     {
-        // Wee need to load a channel once to operate with channelId
         var loadedChannel = await _telegramApiClient.FindChannelByName(currentChannel.Name);
         if(loadedChannel is null)
         {

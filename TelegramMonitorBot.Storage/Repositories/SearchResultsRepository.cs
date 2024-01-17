@@ -19,10 +19,8 @@ public class SearchResultsRepository : ISearchResultsRepository
     {
         _dynamoDbClient = clientFactory.GetClient();
     }
-
-    // TODO Merge with existing
-    public async Task MergeSearchResults(long lastMessage, SearchResults searchResults,
-        CancellationToken cancellationToken)
+    
+    public async Task MergeSearchResults(long lastMessage, SearchResults searchResults, CancellationToken cancellationToken)
     {
         if (searchResults.Results.Count == 0)
         {
