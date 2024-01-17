@@ -24,13 +24,20 @@ internal class ChannelUserRepository : IChannelUserRepository
         _memoryCache = memoryCache;
         _dynamoDbClient = clientFactory.GetClient();
     }
-
-    // TODO consider using result
+    
     public async Task<bool> CheckChannelWithUser(long channelId, long userId, CancellationToken cancellationToken = default)
     {
-        // TODO https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-functions.exists.html
-        var channelUser = await GetChannelUser(channelId, userId, cancellationToken);
-        return channelUser is not null;
+        var getChannelUserRequest = new GetItemRequest
+        {
+            TableName = ChannelUsersConfig.TableName,
+            Key = Mapper.GetChannelUserKey(channelId, userId),
+            ProjectionExpression = $"{ChannelUsersConfig.PartitionKeyName}"
+        };
+        
+        var channelUserResult = await _dynamoDbClient.GetItemAsync(getChannelUserRequest, cancellationToken);
+        
+        var found = channelUserResult.Item is {Count: > 0};
+        return found;
     }
 
     public async Task<Channel?> GetChannel(long channelId, CancellationToken cancellationToken = default)

@@ -2,6 +2,8 @@
 using TelegramMonitorBot.TelegramApiClient.Models;
 using TelegramMonitorBot.TelegramApiClient.Services;
 
+using PhraseMessages = (string Phrase, System.Collections.Generic.ICollection<TelegramMonitorBot.TelegramApiClient.Models.SearchMessage> Messages);
+
 namespace TelegramMonitorBot.TelegramApiClient;
 
 internal class TelegramApiClient : ITelegramApiClient
@@ -61,56 +63,58 @@ internal class TelegramApiClient : ITelegramApiClient
         return await SearchMessagesInternal(channel.Id, phrases, lastMessage);
     }
 
-    internal async Task<ChannelSearchMessages> SearchMessagesInternal(long channelId, IEnumerable<string> phrases, long lastMessage = 0)
+    private async Task<ChannelSearchMessages> SearchMessagesInternal(long channelId, IEnumerable<string> phrases, long lastMessage = 0)
     {
         var phraseSearchMessages = new Dictionary<string, ICollection<SearchMessage>>();
-        if (lastMessage is 0)
+        var history = await GetLastMessage(channelId);
+
+        if (lastMessage is 0 || history is null)
         {
-            var history = await GetLastMessage(channelId);
             return new ChannelSearchMessages(channelId, history?.Id ?? 0, phraseSearchMessages);
         }
-        
-        var maxMessageId = long.MinValue;
 
+        await foreach (var phraseMessages in GetMessages(channelId, lastMessage, phrases))
+        {
+            phraseSearchMessages.Add(phraseMessages.Phrase, phraseMessages.Messages);
+        }
+
+        return new ChannelSearchMessages(channelId, history.Id, phraseSearchMessages);
+    }
+
+    private async IAsyncEnumerable<PhraseMessages> GetMessages(long channelId, long lastMessage, IEnumerable<string> phrases)
+    {
         foreach (var phrase in phrases)
         {
+            // Now it works only for getting updates among 100 latest found messages
+            // If there are more all messages above the limit will be lost
+            // Improve algorithm in case of need of full search
+            // To do so: keep searching with LastMessageId until lastMessage value is reached
             var foundMessages = await _tdClient.SearchChatMessagesAsync(channelId, phrase, limit: 100);
-
             if (foundMessages.Messages is not {Length: > 0} messages)
             {
                 continue;
             }
 
-            maxMessageId = Math.Max(maxMessageId, messages.First().Id);
-            foreach (var foundMessage in messages)
-            {
-                if (lastMessage >= foundMessage.Id)
-                {
-                    continue;
-                }
-                
-                if (phraseSearchMessages.TryGetValue(phrase, out var currentMessages) is false)
-                {
-                    currentMessages = new List<SearchMessage>();
-                    phraseSearchMessages[phrase] = currentMessages;
-                }
-                
-                var messageLink = await _tdClient.GetMessageLinkAsync(channelId, foundMessage.Id);
-                var messageDate = DateTimeOffset.FromUnixTimeSeconds(foundMessage.Date);
-                var messageToAdd = new SearchMessage(foundMessage.Id, messageLink.Link, messageDate);
+            var tasks = messages
+                .Where(t => t.Id > lastMessage)
+                .Select(ConvertMessage);
+            
+            var result = await Task.WhenAll(tasks);
 
-                currentMessages.Add(messageToAdd);
+            if (result.Length != 0)
+            {
+                yield return (phrase, result);
             }
         }
-
-        if (phraseSearchMessages.Count == 0)
-        {
-            // Set the last message in chat as last found message for the next search
-            var message = await GetLastMessage(channelId);
-            maxMessageId = message?.Id ?? 0L;
-        }
-
-        return new ChannelSearchMessages(channelId, maxMessageId, phraseSearchMessages);
+    }
+    
+    private async Task<SearchMessage> ConvertMessage(TdApi.Message message)
+    {
+        var messageLink = await _tdClient.GetMessageLinkAsync(message.ChatId, message.Id);
+        var messageDate = DateTimeOffset.FromUnixTimeSeconds(message.Date);
+        var converted = new SearchMessage(message.Id, messageLink.Link, messageDate);
+            
+        return converted;
     }
 
     private async Task<TdApi.Message?> GetLastMessage(long channelId)
