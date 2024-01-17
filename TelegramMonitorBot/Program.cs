@@ -24,7 +24,7 @@ builder.Host.ConfigureAppConfiguration((buildContext, configurationBuilder) =>
 builder.Services
     .ConfigureAmazonSecrets(configuration)
     .AddTelegramApiClient()
-    .AddTelegramBotClient()
+    .AddTelegramBotClient(configuration)
     .AddStorage()
     .AddControllers();
 

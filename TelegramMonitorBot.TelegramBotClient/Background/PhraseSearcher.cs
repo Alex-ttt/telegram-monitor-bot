@@ -12,7 +12,6 @@ public class PhraseSearcher : BackgroundService
     private readonly ILogger<PhraseSearcher> _logger;
 
     public PhraseSearcher(
-        IMediator mediator, 
         IServiceScopeFactory serviceScopeFactory,
         ILogger<PhraseSearcher> logger)
     {
