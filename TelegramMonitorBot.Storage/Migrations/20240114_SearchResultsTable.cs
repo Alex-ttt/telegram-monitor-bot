@@ -11,24 +11,24 @@ public class SearchResultsTable : MigrationBase
 {
     public override async Task Apply(IAmazonDynamoDB amazonDynamoDbClient)
     {
-        // var createTableRequest = new CreateTableRequest
-        // {
-        //     TableName = DynamoDbConfig.SearchResults.TableName,
-        //     KeySchema = 
-        //     {
-        //         new KeySchemaElement{ AttributeName = DynamoDbConfig.SearchResults.PartitionKeyName, KeyType = "HASH" }, 
-        //         new KeySchemaElement{ AttributeName = DynamoDbConfig.SearchResults.SortKeyName, KeyType = "RANGE" }
-        //     },
-        //     AttributeDefinitions = 
-        //     {
-        //         new AttributeDefinition{ AttributeName = DynamoDbConfig.SearchResults.PartitionKeyName, AttributeType = "S" },
-        //         new AttributeDefinition{ AttributeName = DynamoDbConfig.SearchResults.SortKeyName, AttributeType = "S" },
-        //     },
-        //     BillingMode = BillingMode.PAY_PER_REQUEST,
-        // };
-        //
-        // await amazonDynamoDbClient.CreateTableAsync(createTableRequest);
-        //
+        var createTableRequest = new CreateTableRequest
+        {
+            TableName = DynamoDbConfig.SearchResults.TableName,
+            KeySchema = 
+            {
+                new KeySchemaElement{ AttributeName = DynamoDbConfig.SearchResults.PartitionKeyName, KeyType = "HASH" }, 
+                new KeySchemaElement{ AttributeName = DynamoDbConfig.SearchResults.SortKeyName, KeyType = "RANGE" }
+            },
+            AttributeDefinitions = 
+            {
+                new AttributeDefinition{ AttributeName = DynamoDbConfig.SearchResults.PartitionKeyName, AttributeType = "S" },
+                new AttributeDefinition{ AttributeName = DynamoDbConfig.SearchResults.SortKeyName, AttributeType = "S" },
+            },
+            BillingMode = BillingMode.PAY_PER_REQUEST,
+        };
+        
+        await amazonDynamoDbClient.CreateTableAsync(createTableRequest);
+        
         var ttlRequest = new UpdateTimeToLiveRequest
         {
             TableName = DynamoDbConfig.SearchResults.TableName,

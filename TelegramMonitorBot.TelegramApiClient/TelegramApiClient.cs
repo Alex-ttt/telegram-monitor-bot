@@ -86,7 +86,7 @@ internal class TelegramApiClient : ITelegramApiClient
         foreach (var phrase in phrases)
         {
             // Now it works only for getting updates among 100 latest found messages
-            // If there are more all messages above the limit will be lost
+            // If there are more, all messages above the limit will be lost
             // Improve algorithm in case of need of full search
             // To do so: keep searching with LastMessageId until lastMessage value is reached
             var foundMessages = await _tdClient.SearchChatMessagesAsync(channelId, phrase, limit: 100);

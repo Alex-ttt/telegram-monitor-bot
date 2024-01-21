@@ -40,6 +40,7 @@ internal static class DynamoDbConfig
             internal const string SearchResultsMessageDate = "Date";
             
             internal const string ExpiredAt = "ExpiredAt";
+            internal const string VersionNumber = "VersionNumber";
         }
     }
 }

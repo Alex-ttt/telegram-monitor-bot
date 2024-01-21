@@ -10,6 +10,8 @@ public class PhraseSearcher : BackgroundService
 {
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<PhraseSearcher> _logger;
+    
+    private readonly TimeSpan _delayTime = TimeSpan.FromMinutes(1);
 
     public PhraseSearcher(
         IServiceScopeFactory serviceScopeFactory,
@@ -27,11 +29,11 @@ public class PhraseSearcher : BackgroundService
             {
                 var mediator = _serviceScopeFactory.CreateScope().ServiceProvider.GetRequiredService<IMediator>();
                 await mediator.Send(new SearchPhrasesRequest(), stoppingToken);
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await Task.Delay(_delayTime, stoppingToken);
             }
             catch(Exception ex)
             {
-                _logger.LogError(ex, $"An error occured during {nameof(PhraseSearcher)} work");
+                _logger.LogError(ex, "An error occured during {ServiceName} work", nameof(PhraseSearcher));
                 await Task.Delay(2500, CancellationToken.None);
             }
         }

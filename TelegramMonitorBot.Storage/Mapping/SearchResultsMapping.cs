@@ -9,8 +9,6 @@ namespace TelegramMonitorBot.Storage.Mapping;
 
 internal static class SearchResultsMapping
 {
-    private static readonly Dictionary<string, IList<Message>> EmptyResult = new();
-    
     private const string ChannelIdPrefix = "channel#";
     private const string UserIdPrefix = "user#";
     
@@ -21,7 +19,8 @@ internal static class SearchResultsMapping
         {
             [SearchResultsConfig.PartitionKeyName] = new() { S = ChannelIdToKeyValue(searchResults.ChannelId)},
             [SearchResultsConfig.SortKeyName] = new() { S = UserIdToKeyValue(searchResults.UserId)},
-            [Attributes.ExpiredAt] = new() { N = unixTtl.ToString()}
+            [Attributes.ExpiredAt] = new() { N = unixTtl.ToString()},
+            [Attributes.VersionNumber] = new() { N = searchResults.Version.ToString() },
         };
 
         if (searchResults.Results.Count != 0)
@@ -55,17 +54,18 @@ internal static class SearchResultsMapping
     {
         var channelId = ParseChannelKey(itemAttributes[SearchResultsConfig.PartitionKeyName].S);
         var userId = ParseUserKey(itemAttributes[SearchResultsConfig.SortKeyName].S);
+        var version = int.Parse(itemAttributes[Attributes.VersionNumber].N);
 
         if (itemAttributes[Attributes.SearchResults].L is not {Count: > 0} searchResultsItem)
         {
-            return new SearchResults(channelId, userId, EmptyResult);
+            return SearchResults.GetEmpty(channelId, userId);
         }
 
         var resultsCollection = searchResultsItem
             .Select(t => ToSearchResult(t.M))
             .ToDictionary(t => t.Key, t => t.Value);
 
-        var searchResults = new SearchResults(channelId, userId, resultsCollection);
+        var searchResults = new SearchResults(channelId, userId, resultsCollection, version);
 
         return searchResults;
     }
